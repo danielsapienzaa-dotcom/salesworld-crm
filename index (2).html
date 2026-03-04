@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>SalesWorld CRM</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#080c14; font-family: "DM Sans","Segoe UI",sans-serif; }
+    input, select, textarea, button { font-family: inherit; }
+    ::-webkit-scrollbar { width:4px; } 
+    ::-webkit-scrollbar-track { background:#0d1520; }
+    ::-webkit-scrollbar-thumb { background:#1e2d45; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+// React loaded via CDN
+
+const INITIAL_USERS = [
+  { id: "manager", name: "Manager", role: "manager", password: "manager123" },
+  { id: "v1", name: "Venditore 1", role: "seller", password: "v1pass" },
+  { id: "v2", name: "Venditore 2", role: "seller", password: "v2pass" },
+  { id: "v3", name: "Venditore 3", role: "seller", password: "v3pass" },
+  { id: "v4", name: "Venditore 4", role: "seller", password: "v4pass" },
+];
+
+const NICCHIE = ["Ristorante/Bar","Estetista/Centro Benessere","Artigiano/Idraulico","Artigiano/Elettricista","Artigiano/Imbianchino","Parrucchiere/Barbiere","Officina/Carrozzeria","Altro"];
+const STATI = ["Da chiamare","Non risposto","Richiamato","Appuntamento fissato","Anteprima mostrata","Vendita chiusa","Rifiuto definitivo"];
+const COMM_PCT = 0.10;
+
+const STATO_COLORS = {
+  "Da chiamare":          { bg:"#1e293b", text:"#94a3b8", dot:"#64748b" },
+  "Non risposto":         { bg:"#422006", text:"#fdba74", dot:"#f97316" },
+  "Richiamato":           { bg:"#1c1917", text:"#d6d3d1", dot:"#a8a29e" },
+  "Appuntamento fissato": { bg:"#052e16", text:"#86efac", dot:"#22c55e" },
+  "Anteprima mostrata":   { bg:"#0c1a6b", text:"#93c5fd", dot:"#3b82f6" },
+  "Vendita chiusa":       { bg:"#14532d", text:"#4ade80", dot:"#16a34a" },
+  "Rifiuto definitivo":   { bg:"#450a0a", text:"#fca5a5", dot:"#ef4444" },
+};
+
+const SCRIPT_SECTIONS = [
+  { id:"filtro", title:"🔒 Gestire il Filtro", color:"#f97316", steps:[
+    { label:"Dipendente risponde", text:"Salve, il titolare è disponibile?" },
+    { label:"Chiedono chi sei", text:"[NOME], grazie." },
+    { label:"Chiedono perché", text:"Ho visto la sua attività su Google, volevo parlargli direttamente — è disponibile?" },
+  ]},
+  { id:"apertura", title:"👋 Apertura + Complimento", color:"#3b82f6", steps:[
+    { label:"Apertura", text:"Salve, parlo con il titolare?" },
+    { label:"Complimento 1 — Recensione specifica", text:"Guardi, le volevo fare i complimenti — ho visto la sua attività su Google Maps, ha delle recensioni davvero ottime. In particolare ho letto di [dettaglio specifico]. Si vede che c'è una cura enorme in quello che fa, complimenti davvero." },
+    { label:"Complimento 2 — Costanza", text:"Ho trovato la sua attività su Maps e mi ha colpito la costanza delle recensioni nel tempo — clienti che lasciano feedback positivi continuamente. Vuol dire che il lavoro è sempre allo stesso livello. Complimenti." },
+    { label:"Complimento 3 — Dettaglio servizio", text:"Ho visto la sua attività su Maps e i clienti non si limitano a dire 'bello' — descrivono proprio [dettaglio specifico]. Quello vuol dire che lascia un'impressione che vale la pena raccontare. Complimenti." },
+  ]},
+  { id:"aggancio", title:"🎣 Aggancio per Nicchia", color:"#8b5cf6", steps:[
+    { label:"🍽️ Ristoranti/Bar", text:"Stavo cercando un posto dove mangiare qui a Pavia e ho trovato la sua attività su Maps. Ho cercato il sito per vedere il menu, ma non sono riuscito a trovarlo. Non ce l'ha ancora, o magari ce l'ho cercato male io?" },
+    { label:"💆 Estetisti", text:"Stavo cercando un centro estetico affidabile qui a Pavia e ho trovato la sua attività su Maps. Ho cercato il sito per vedere i trattamenti e i prezzi, ma non sono riuscita a trovarlo. Non ce l'ha ancora?" },
+    { label:"🔧 Artigiani — diretto", text:"Stavo scorrendo le attività su Google Maps nella zona di Pavia e mi sono imbattuto nella sua — ha delle recensioni davvero ottime. [Complimento]. La chiamo proprio per questo — non ha ancora un sito, giusto?" },
+  ]},
+  { id:"chiusura", title:"📅 Chiusura Appuntamento", color:"#22c55e", steps:[
+    { label:"Introduzione + Proposta", text:"Ecco — ed è proprio per questo che la sto chiamando. Da diversi anni ci occupiamo della presenza online di [nicchia] qui a Pavia e dintorni, e quando troviamo un'attività con una reputazione come la sua che però online non è rappresentata come merita, mi sembra davvero un peccato. Proprio per non farle perdere altro tempo — possiamo fissare un appuntamento veloce di 10 minuti in cui le faccio vedere un'anteprima del sito, completamente gratuita. Poi mi dice semplicemente cosa ne pensa." },
+    { label:"Doppia alternativa", text:"Preferisce domani alle 14:00 oppure dopodomani alle 16:00?" },
+    { label:"Se ha già il sito", text:"Ottimo — proprio per questo potrebbe essere interessante confrontare. Ci vogliono 10 minuti, completamente gratuito. Preferisce domani o dopodomani?" },
+  ]},
+  { id:"obiezioni_app", title:"🛡️ Obiezioni Appuntamento", color:"#ef4444", steps:[
+    { label:"Non ho tempo", text:"Capisco perfettamente. Proprio per questo le chiedo solo 10 minuti — lei non deve preparare nulla, deve solo guardare e dirmi cosa ne pensa. Preferisce domani alle 14 o dopodomani alle 16?" },
+    { label:"Cosa mi vuole vendere?", text:"Niente in questa fase — e glielo dico con onestà totale. Voglio solo mostrarle un'anteprima gratuita. Se dopo i 10 minuti non le interessa, ci salutiamo. Preferisce domani o dopodomani?" },
+    { label:"Non mi interessa", text:"La capisco. Di solito chi mi dice questo non ha ancora visto cosa può fare per un'attività come la sua. Le chiedo solo 10 minuti, completamente gratuiti. Preferisce domani o dopodomani?" },
+    { label:"Mandi una email", text:"Volentieri — però un'anteprima del sito si vede, non si legge. Ci vogliono 10 minuti e poi le mando tutto per iscritto se vuole. Preferisce domani alle 14 o dopodomani alle 16?" },
+    { label:"Non ho soldi", text:"Non le sto chiedendo nessuna spesa — l'anteprima è completamente gratuita. Le chiedo solo 10 minuti, poi decide lei. Preferisce domani o dopodomani?" },
+    { label:"Richiami più tardi", text:"Nessun problema. Proprio per non disturbarla più volte — blocchiamo subito 10 minuti così non ci pensiamo più. Preferisce il mattino o il pomeriggio?" },
+  ]},
+  { id:"vendita", title:"💰 Script Vendita", color:"#f59e0b", steps:[
+    { label:"Agenda setting", text:"Guarda [NOME], ti spiego brevemente come svolgo queste chiamate — ti faccio qualche domanda veloce per capire la situazione, poi ti faccio vedere l'anteprima del sito che prepareremo per te, e mi dirai cosa ne pensi. Va bene?" },
+    { label:"Spiega il meccanismo", text:"Quando qualcuno a Pavia cerca [categoria] su Google, in quel momento sta già cercando te. Il sito fa una cosa sola ma la fa bene: fa in modo che in quel momento tu ci sia. La differenza non è avere un sito — è essere trovati. E il sito lavora anche quando sei chiuso, stai lavorando, stai dormendo." },
+    { label:"ROI con i suoi numeri", text:"Mi hai detto che hai circa [X] clienti al mese a [Y€] ognuno. Se il sito porta anche solo il 10% in più — stiamo parlando di [X×10%×Y]€ in più al mese, senza che tu faccia nulla di diverso." },
+    { label:"Prezzo", text:"Si parte da 100€ al mese per la gestione completa — manutenzione, aggiornamenti, assistenza, tutto incluso. Più una quota iniziale di 300€ per la creazione. Tutto deducibile come spesa aziendale. Ha senso?" },
+    { label:"⚡ SILENZIO dopo il prezzo", text:"Non aggiungere nulla. Aspetta. Chi parla per primo perde." },
+  ]},
+  { id:"obiezioni_vendita", title:"🛡️ Obiezioni Vendita", color:"#e11d48", steps:[
+    { label:"Costa troppo / Non ho budget", text:"Capisco — ed è giusto ragionarci. Però usiamo i tuoi numeri: stai parlando di meno di 4€ al giorno. Con [X] clienti al mese a [Y€] ognuno, basta anche solo uno o due clienti in più al mese per coprire tutto. Il resto è guadagno netto. E lo scarichi come spesa aziendale. Cosa ti frena di più — il mensile o il setup iniziale?" },
+    { label:"Devo pensarci", text:"Certo, è giusto. Però dimmi — cosa ti trattiene esattamente? È una questione di budget, di tempistiche, o c'è qualcosa nell'anteprima che non ti ha convinto al 100%? Se c'è qualcosa che non quadra preferisco saperlo adesso." },
+    { label:"Ne devo parlare con mia moglie / socio", text:"Assolutamente comprensibile. Organizziamo una call veloce tutti insieme — così rispondo direttamente alle loro domande invece di farti spiegare tutto a parole. Quando potrebbe essere comodo? Domani o dopodomani?" },
+    { label:"Ho già un sito", text:"Ottimo — e ti faccio una domanda concreta: se cerchi [categoria] Pavia su Google adesso, appari nelle prime posizioni? Perché avere un sito e avere un sito che porta clienti sono due cose completamente diverse." },
+    { label:"Non ho bisogno, ho già tanti clienti", text:"Sono contento che vada bene. Ti faccio però una domanda: quei clienti arrivano in automatico o li porti tu ogni giorno? Il sito porta clienti mentre lavori, dormi, sei in vacanza. Non sostituisce quello che fai — lo moltiplica." },
+    { label:"L'ho già provato e non ha funzionato", text:"Mi dispiace — succede spesso con siti fatti senza strategia di posizionamento locale. La differenza è che noi ottimizziamo il sito per farti trovare da chi cerca esattamente la tua categoria a Pavia." },
+    { label:"Non ho tempo per gestire un sito", text:"Non devi gestire nulla — lo facciamo completamente noi. Aggiornamenti, manutenzione, assistenza. Tu non tocchi niente. Il sito lavora, tu lavori." },
+    { label:"Ci penso e ti faccio sapere", text:"Capisco. Però ti dico una cosa con rispetto — di solito quando si dice 'ci penso' c'è qualcosa che non è ancora chiaro. Cosa ti blocca in questo momento?" },
+  ]},
+];
+
+const computeKPI = (leads) => {
+  const chiamate = leads.filter(l => l.stato !== "Da chiamare").length;
+  const appuntamenti = leads.filter(l => ["Appuntamento fissato","Anteprima mostrata","Vendita chiusa"].includes(l.stato)).length;
+  const anteprime = leads.filter(l => ["Anteprima mostrata","Vendita chiusa"].includes(l.stato)).length;
+  const vendite = leads.filter(l => l.stato === "Vendita chiusa").length;
+  const tasso_app = chiamate > 0 ? (appuntamenti/chiamate*100).toFixed(1) : "—";
+  const tasso_chiusura = anteprime > 0 ? (vendite/anteprime*100).toFixed(1) : "—";
+  // Fatturato: setup + (mensile * mesi)
+  const fatturato = leads.filter(l => l.stato === "Vendita chiusa").reduce((acc, l) => {
+    const setup = parseFloat(l.prezzoSetup)||0;
+    const mensile = parseFloat(l.prezzoMensile)||0;
+    const mesi = parseInt(l.mesiContratto)||0;
+    return acc + setup + (mensile * mesi);
+  }, 0);
+  const chiuse2 = leads.filter(l => l.stato === "Vendita chiusa");
+  const fatturatoSetup = chiuse2.reduce((acc,l) => acc+(parseFloat(l.prezzoSetup)||0), 0);
+  const ricorrenteMensile = chiuse2.reduce((acc,l) => acc+(parseFloat(l.prezzoMensile)||0), 0);
+  const commSetup = fatturatoSetup * COMM_PCT;
+  const commMensile = ricorrenteMensile * COMM_PCT;
+  const commissioni = commSetup + commMensile;
+  return { chiamate, appuntamenti, anteprime, vendite, tasso_app, tasso_chiusura, fatturato, fatturatoSetup, ricorrenteMensile, commSetup, commMensile, commissioni };
+};
+
+const eur = (n) => n.toLocaleString("it-IT", { style:"currency", currency:"EUR", minimumFractionDigits:0, maximumFractionDigits:0 });
+const formatDate = (d) => d ? new Date(d+"T00:00:00").toLocaleDateString("it-IT") : "—";
+const formatDateTime = (d) => d ? new Date(d).toLocaleString("it-IT", { day:"2-digit", month:"2-digit", hour:"2-digit", minute:"2-digit" }) : "—";
+const daysUntil = (d) => { if (!d) return null; return Math.ceil((new Date(d+"T00:00:00") - new Date()) / 86400000); };
+
+const S = {
+  app: { fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#080c14", minHeight:"100vh", color:"#e2e8f0", overflowX:"hidden" },
+  nav: { background:"#0d1520", borderBottom:"1px solid #1e2d45", padding:"0 14px", display:"flex", alignItems:"center", justifyContent:"space-between", height:54, position:"sticky", top:0, zIndex:100 },
+  page: { maxWidth:1100, margin:"0 auto", padding:"18px 12px", boxSizing:"border-box", width:"100%" },
+  card: { background:"#0d1520", border:"1px solid #1e2d45", borderRadius:14, padding:16, marginBottom:14 },
+  cardGold: { background:"#1c1205", border:"1px solid #92400e", borderRadius:14, padding:16, marginBottom:14 },
+  cardGreen: { background:"#052e16", border:"1px solid #166534", borderRadius:14, padding:16, marginBottom:14 },
+  h1: { fontSize:21, fontWeight:800, color:"#fff", marginBottom:3, letterSpacing:"-0.5px" },
+  h2: { fontSize:15, fontWeight:700, color:"#fff", marginBottom:12 },
+  h3: { fontSize:11, fontWeight:600, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8 },
+  label: { fontSize:11, color:"#64748b", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4, display:"block" },
+  input: { width:"100%", background:"#0a1120", border:"1px solid #1e2d45", borderRadius:8, padding:"8px 12px", color:"#e2e8f0", fontSize:14, outline:"none", boxSizing:"border-box" },
+  select: { width:"100%", background:"#0a1120", border:"1px solid #1e2d45", borderRadius:8, padding:"8px 12px", color:"#e2e8f0", fontSize:14, outline:"none", boxSizing:"border-box" },
+  btn: { padding:"8px 14px", borderRadius:8, border:"none", cursor:"pointer", fontWeight:600, fontSize:13, transition:"all 0.15s" },
+  btnP: { background:"#3b82f6", color:"#fff" },
+  btnD: { background:"#450a0a", color:"#fca5a5", border:"1px solid #7f1d1d" },
+  btnG: { background:"transparent", color:"#64748b", border:"1px solid #1e2d45" },
+  grid2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
+  flexB: { display:"flex", alignItems:"center", justifyContent:"space-between" },
+  tag: { display:"inline-flex", alignItems:"center", gap:5, padding:"3px 9px", borderRadius:20, fontSize:11, fontWeight:600 },
+};
+
+function KPICard({ icon, label, value, accent, sub }) {
+  return (
+    <div style={{ ...S.card, marginBottom:0, borderColor:accent?"#1e3a5f":"#1e2d45" }}>
+      <div style={{ fontSize:17, marginBottom:4 }}>{icon}</div>
+      <div style={{ fontSize:22, fontWeight:900, color:accent||"#fff", lineHeight:1 }}>{value}</div>
+      <div style={{ fontSize:11, color:"#64748b", marginTop:3 }}>{label}</div>
+      {sub && <div style={{ fontSize:10, color:"#475569", marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function Badge({ stato }) {
+  const c = STATO_COLORS[stato]||{ bg:"#1e293b", text:"#94a3b8", dot:"#64748b" };
+  return <span style={{ ...S.tag, background:c.bg, color:c.text }}><span style={{ width:6,height:6,borderRadius:"50%",background:c.dot,display:"inline-block" }}/>{stato}</span>;
+}
+
+function TabBtn({ label, active, onClick }) {
+  return <button onClick={onClick} style={{ ...S.btn, background:active?"#1e3a5f":"transparent", color:active?"#93c5fd":"#64748b", border:active?"1px solid #1e3a8f":"1px solid transparent", fontSize:12, padding:"7px 11px" }}>{label}</button>;
+}
+
+// ─── LOGIN ───────────────────────────────────────────
+function Login({ users, onLogin }) {
+  const [sel, setSel] = useState(users[0].id);
+  const [pw, setPw] = useState("");
+  const [err, setErr] = useState("");
+  const handle = () => {
+    const u = users.find(x => x.id===sel);
+    if (u && u.password===pw) onLogin(u);
+    else { setErr("Password errata"); setTimeout(()=>setErr(""),2000); }
+  };
+  return (
+    <div style={{ minHeight:"100vh", background:"#080c14", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ width:"100%", maxWidth:340 }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ fontSize:40, marginBottom:8 }}>⚡</div>
+          <div style={{ fontSize:28, fontWeight:900, color:"#fff", letterSpacing:"-1px" }}>Sales<span style={{ color:"#3b82f6" }}>World</span></div>
+          <div style={{ color:"#475569", fontSize:13, marginTop:4 }}>CRM & Script — Pavia</div>
+        </div>
+        <div style={{ ...S.card, padding:24 }}>
+          <div style={{ marginBottom:14 }}>
+            <label style={S.label}>Profilo</label>
+            <select style={S.select} value={sel} onChange={e=>setSel(e.target.value)}>
+              {users.map(u=><option key={u.id} value={u.id}>{u.name}{u.role==="manager"?" 👑":""}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom:18 }}>
+            <label style={S.label}>Password</label>
+            <input style={S.input} type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handle()} placeholder="••••••••"/>
+          </div>
+          {err && <div style={{ color:"#fca5a5", fontSize:13, marginBottom:10, textAlign:"center" }}>{err}</div>}
+          <button style={{ ...S.btn, ...S.btnP, width:"100%", padding:"11px 0", fontSize:14 }} onClick={handle}>Accedi →</button>
+        </div>
+        <div style={{ textAlign:"center", color:"#1e3a5f", fontSize:11, marginTop:10 }}>Manager: manager123 · v1pass / v2pass / v3pass / v4pass</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LEAD FORM ───────────────────────────────────────
+function LeadForm({ onSave, onCancel, initial }) {
+  const [f, setF] = useState(initial || {
+    nome:"", telefono:"", zona:"", nicchia:NICCHIE[0], stato:"Da chiamare",
+    dataAppuntamento:"", oraAppuntamento:"", followup:"", note:"",
+    prezzoSetup:"", prezzoMensile:"", mesiContratto:""
+  });
+  const set = (k,v) => setF(x=>({...x,[k]:v}));
+  const isChiusa = f.stato === "Vendita chiusa";
+
+  return (
+    <div style={{ ...S.card, border:"1px solid #1e3a5f" }}>
+      <div style={{ ...S.h2, marginBottom:16 }}>{initial?"✏️ Modifica Lead":"➕ Nuovo Lead"}</div>
+
+      <div style={{ ...S.grid2, marginBottom:10 }}>
+        <div><label style={S.label}>Nome Attività</label><input style={S.input} value={f.nome} onChange={e=>set("nome",e.target.value)} placeholder="Es. Trattoria da Mario"/></div>
+        <div><label style={S.label}>Telefono</label><input style={S.input} value={f.telefono} onChange={e=>set("telefono",e.target.value)} placeholder="0382 000000"/></div>
+      </div>
+      <div style={{ ...S.grid2, marginBottom:10 }}>
+        <div><label style={S.label}>Zona</label><input style={S.input} value={f.zona} onChange={e=>set("zona",e.target.value)} placeholder="Es. Centro Pavia"/></div>
+        <div><label style={S.label}>Nicchia</label><select style={S.select} value={f.nicchia} onChange={e=>set("nicchia",e.target.value)}>{NICCHIE.map(n=><option key={n}>{n}</option>)}</select></div>
+      </div>
+      <div style={{ ...S.grid2, marginBottom:10 }}>
+        <div><label style={S.label}>Stato</label><select style={S.select} value={f.stato} onChange={e=>set("stato",e.target.value)}>{STATI.map(s=><option key={s}>{s}</option>)}</select></div>
+        <div><label style={S.label}>Follow-up</label><input style={S.input} type="date" value={f.followup} onChange={e=>set("followup",e.target.value)}/></div>
+      </div>
+
+      {/* Appuntamento */}
+      {(f.stato==="Appuntamento fissato"||f.stato==="Anteprima mostrata") && (
+        <div style={{ ...S.grid2, marginBottom:10 }}>
+          <div><label style={S.label}>📅 Data Appuntamento</label><input style={S.input} type="date" value={f.dataAppuntamento} onChange={e=>set("dataAppuntamento",e.target.value)}/></div>
+          <div><label style={S.label}>🕐 Ora</label><input style={S.input} type="time" value={f.oraAppuntamento} onChange={e=>set("oraAppuntamento",e.target.value)}/></div>
+        </div>
+      )}
+
+      {/* Contratto — solo se vendita chiusa */}
+      {isChiusa && (
+        <div style={{ background:"#052e16", border:"1px solid #166534", borderRadius:10, padding:14, marginBottom:10 }}>
+          <div style={{ ...S.h3, color:"#4ade80", marginBottom:10 }}>💰 Dettagli Contratto</div>
+          <div style={{ ...S.grid2, marginBottom:8 }}>
+            <div><label style={S.label}>Setup (€)</label><input style={S.input} type="number" value={f.prezzoSetup} onChange={e=>set("prezzoSetup",e.target.value)} placeholder="300"/></div>
+            <div><label style={S.label}>Mensile (€)</label><input style={S.input} type="number" value={f.prezzoMensile} onChange={e=>set("prezzoMensile",e.target.value)} placeholder="100"/></div>
+          </div>
+          <div><label style={S.label}>Mesi contratto</label><input style={S.input} type="number" value={f.mesiContratto} onChange={e=>set("mesiContratto",e.target.value)} placeholder="12"/></div>
+          {f.prezzoSetup && f.prezzoMensile && f.mesiContratto && (
+            <div style={{ marginTop:10, color:"#4ade80", fontSize:13, fontWeight:700 }}>
+              Totale contratto: {eur((parseFloat(f.prezzoSetup)||0) + (parseFloat(f.prezzoMensile)||0)*(parseInt(f.mesiContratto)||0))}
+              · 💸 Comm. setup: {eur((parseFloat(f.prezzoSetup)||0)*0.1)} · 📅 Comm. mensile: {eur((parseFloat(f.prezzoMensile)||0)*0.1)}/mese
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginBottom:16 }}>
+        <label style={S.label}>Note</label>
+        <textarea style={{ ...S.input, minHeight:60, resize:"vertical" }} value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Annotazioni..."/>
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        <button style={{ ...S.btn, ...S.btnP }} onClick={()=>onSave(f)}>Salva</button>
+        <button style={{ ...S.btn, ...S.btnG }} onClick={onCancel}>Annulla</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── SELLER VIEW ─────────────────────────────────────
+function SellerView({ user, leads, addLead, updateLead, deleteLead }) {
+  const [tab, setTab] = useState("leads");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [filter, setFilter] = useState("tutti");
+  const [search, setSearch] = useState("");
+  const [openScript, setOpenScript] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const mine = leads.filter(l => l.userId===user.id);
+  const kpi = computeKPI(mine);
+
+  // Appuntamenti futuri ordinati
+  const appuntamenti = mine.filter(l =>
+    (l.stato==="Appuntamento fissato"||l.stato==="Anteprima mostrata") && l.dataAppuntamento
+  ).sort((a,b)=>new Date(a.dataAppuntamento)-new Date(b.dataAppuntamento));
+
+  const followups = mine.filter(l => { const d=daysUntil(l.followup); return d!==null && d<=1; });
+
+  const filtered = mine.filter(l => {
+    const mf = filter==="tutti"||l.stato===filter;
+    const ms = !search||l.nome.toLowerCase().includes(search.toLowerCase())||(l.telefono||"").includes(search);
+    return mf && ms;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  const saveLead = (form) => {
+    if (editing) {
+      updateLead({ ...editing, ...form });
+      setEditing(null);
+    } else {
+      const newLead = { ...form, id: Date.now().toString(), userId: user.id, createdAt: new Date().toISOString() };
+      addLead(newLead);
+      setShowForm(false);
+    }
+  };
+
+  return (
+    <div style={S.page}>
+      <div style={{ ...S.flexB, marginBottom:18, flexWrap:"wrap", gap:8 }}>
+        <div>
+          <div style={S.h1}>Ciao, {user.name} 👋</div>
+          <div style={{ color:"#475569", fontSize:12 }}>{new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"})}</div>
+        </div>
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+          {["leads","agenda","kpi","script"].map(t=><TabBtn key={t} label={t==="leads"?"📋 Lead":t==="agenda"?"📅 Agenda":t==="kpi"?"📊 KPI":"📖 Script"} active={tab===t} onClick={()=>setTab(t)}/>)}
+        </div>
+      </div>
+
+      {/* Alert follow-up */}
+      {followups.length>0 && (
+        <div style={{ background:"#1c1205", border:"1px solid #92400e", borderRadius:10, padding:"9px 14px", marginBottom:12, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <span>🔔</span><span style={{ color:"#fdba74", fontWeight:700, fontSize:13 }}>Follow-up oggi:</span>
+          {followups.map(l=><span key={l.id} style={{ ...S.tag, background:"#422006", color:"#fdba74", cursor:"pointer" }} onClick={()=>{setEditing(l);setTab("leads");}}>{l.nome}</span>)}
+        </div>
+      )}
+
+      {/* ── LEADS ── */}
+      {confirmDelete && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#0d1520", border:"1px solid #7f1d1d", borderRadius:14, padding:24, maxWidth:300, width:"100%" }}>
+            <div style={{ fontSize:28, marginBottom:10, textAlign:"center" }}>🗑️</div>
+            <div style={{ fontWeight:700, color:"#fff", fontSize:15, marginBottom:6, textAlign:"center" }}>Eliminare questo lead?</div>
+            <div style={{ color:"#64748b", fontSize:13, marginBottom:20, textAlign:"center" }}>L'operazione non è reversibile.</div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button style={{ ...S.btn, ...S.btnD, flex:1 }} onClick={()=>{ deleteLead(confirmDelete); setConfirmDelete(null); }}>Elimina</button>
+              <button style={{ ...S.btn, ...S.btnG, flex:1 }} onClick={()=>setConfirmDelete(null)}>Annulla</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab==="leads" && (
+        <>
+          {showForm||editing ? (
+            <LeadForm onSave={saveLead} onCancel={()=>{setShowForm(false);setEditing(null);}} initial={editing}/>
+          ) : (
+            <>
+              <div style={{ ...S.flexB, marginBottom:12, flexWrap:"wrap", gap:8 }}>
+                <button style={{ ...S.btn, ...S.btnP }} onClick={()=>setShowForm(true)}>+ Nuovo Lead</button>
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  <input style={{ ...S.input, width:160 }} placeholder="🔍 Cerca..." value={search} onChange={e=>setSearch(e.target.value)}/>
+                  <select style={{ ...S.select, width:180 }} value={filter} onChange={e=>setFilter(e.target.value)}>
+                    <option value="tutti">Tutti gli stati</option>
+                    {STATI.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ color:"#475569", fontSize:11, marginBottom:8 }}>{filtered.length} lead</div>
+              {filtered.length===0 ? (
+                <div style={{ ...S.card, textAlign:"center", padding:36, color:"#475569" }}><div style={{ fontSize:32, marginBottom:8 }}>📋</div>Nessun lead. Inizia ad aggiungerne!</div>
+              ) : filtered.map(lead=>(
+                <div key={lead.id} style={{ ...S.card, marginBottom:8, borderLeftWidth:3, borderLeftColor:STATO_COLORS[lead.stato]?.dot||"#1e2d45" }}>
+                  <div style={{ ...S.flexB, flexWrap:"wrap", gap:6 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{lead.nome||"—"}</div>
+                      <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>📞 {lead.telefono||"—"} · 📍 {lead.zona||"—"} · 🏷️ {lead.nicchia}</div>
+                      {lead.dataAppuntamento && <div style={{ color:"#22c55e", fontSize:12, marginTop:2 }}>📅 App: {formatDate(lead.dataAppuntamento)} {lead.oraAppuntamento && "alle "+lead.oraAppuntamento}</div>}
+                      {lead.stato==="Vendita chiusa" && lead.prezzoSetup && (
+                        <div style={{ marginTop:6, background:"#052e16", borderRadius:7, padding:"7px 10px", border:"1px solid #166534" }}>
+                          <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+                            <div>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em" }}>Setup</div>
+                              <div style={{ color:"#4ade80", fontSize:13, fontWeight:700 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div>
+                              <div style={{ color:"#64748b", fontSize:9 }}>subito</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em" }}>Mensile</div>
+                              <div style={{ color:"#93c5fd", fontSize:13, fontWeight:700 }}>{eur(parseFloat(lead.prezzoMensile)||0)}<span style={{fontSize:10, color:"#64748b"}}>/mese</span></div>
+                              <div style={{ color:"#64748b", fontSize:9 }}>x {lead.mesiContratto} mesi</div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em" }}>Totale</div>
+                              <div style={{ color:"#fcd34d", fontSize:13, fontWeight:700 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div>
+                              <div style={{ color:"#64748b", fontSize:9 }}>contratto</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      )}
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                      <Badge stato={lead.stato}/>
+                      <button style={{ ...S.btn, ...S.btnG, padding:"4px 9px", fontSize:12 }} onClick={()=>setEditing(lead)}>✏️</button>
+                      <button style={{ ...S.btn, ...S.btnD, padding:"4px 9px", fontSize:12 }} onClick={()=>setConfirmDelete(lead.id)}>🗑️</button>
+                    </div>
+                  </div>
+                  {lead.note && <div style={{ marginTop:7, color:"#64748b", fontSize:12, background:"#0a1120", padding:"6px 10px", borderRadius:7 }}>{lead.note}</div>}
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── AGENDA ── */}
+      {tab==="agenda" && (
+        <>
+          <div style={{ ...S.h2, marginBottom:14 }}>📅 Appuntamenti in programma</div>
+          {appuntamenti.length===0 ? (
+            <div style={{ ...S.card, textAlign:"center", padding:36, color:"#475569" }}><div style={{ fontSize:32, marginBottom:8 }}>📅</div>Nessun appuntamento fissato.<br/><span style={{ fontSize:12 }}>Aggiungi data/ora quando fissi un appuntamento.</span></div>
+          ) : appuntamenti.map(lead=>{
+            const days = daysUntil(lead.dataAppuntamento);
+            const urgColor = days===0?"#f97316":days<0?"#ef4444":"#22c55e";
+            return (
+              <div key={lead.id} style={{ ...S.card, borderLeftWidth:3, borderLeftColor:urgColor }}>
+                <div style={{ ...S.flexB, flexWrap:"wrap", gap:6 }}>
+                  <div>
+                    <div style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{lead.nome}</div>
+                    <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>📞 {lead.telefono||"—"} · 🏷️ {lead.nicchia}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontWeight:800, color:urgColor, fontSize:15 }}>{formatDate(lead.dataAppuntamento)}{lead.oraAppuntamento && " — "+lead.oraAppuntamento}</div>
+                    <div style={{ fontSize:11, color:urgColor }}>{days<0?"Scaduto":days===0?"Oggi":days===1?"Domani":days+" giorni"}</div>
+                  </div>
+                </div>
+                {lead.note && <div style={{ marginTop:6, color:"#64748b", fontSize:12, background:"#0a1120", padding:"5px 9px", borderRadius:6 }}>{lead.note}</div>}
+                <div style={{ marginTop:8, display:"flex", gap:6 }}>
+                  <button style={{ ...S.btn, background:"#14532d", color:"#4ade80", border:"1px solid #166534", fontSize:11, padding:"5px 10px" }} onClick={()=>{ updateLead({...lead, stato:"Anteprima mostrata"}); }}>✓ Anteprima mostrata</button>
+                  <button style={{ ...S.btn, ...S.btnG, fontSize:11, padding:"5px 10px" }} onClick={()=>setEditing(lead)}>✏️ Modifica</button>
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── KPI ── */}
+      {tab==="kpi" && (
+        <>
+          <div style={{ ...S.grid2, marginBottom:10 }}>
+            <KPICard icon="📞" label="Chiamate" value={kpi.chiamate} accent="#3b82f6"/>
+            <KPICard icon="📅" label="Appuntamenti" value={kpi.appuntamenti} accent="#22c55e"/>
+            <KPICard icon="👁️" label="Anteprime" value={kpi.anteprime} accent="#8b5cf6"/>
+            <KPICard icon="💰" label="Vendite" value={kpi.vendite} accent="#f59e0b"/>
+          </div>
+
+          {/* Box fatturato */}
+          <div style={S.cardGreen}>
+            <div style={{ ...S.h3, color:"#4ade80" }}>IL TUO FATTURATO</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <div>
+                  <div style={{ fontSize:11, color:"#64748b" }}>Totale generato</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#4ade80" }}>{eur(kpi.fatturato)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:"#64748b" }}>Comm. totale setup</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#4ade80" }}>{eur(kpi.fatturatoSetup)}</div>
+                </div>
+                <div style={{ background:"#0a2a1a", borderRadius:8, padding:"9px 10px", border:"1px solid #166534" }}>
+                  <div style={{ fontSize:10, color:"#64748b", marginBottom:3 }}>Comm. setup (incassata)</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#f59e0b" }}>{eur(kpi.commSetup)}</div>
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <div>
+                  <div style={{ fontSize:11, color:"#64748b" }}>Ricorrente mensile attivo</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#93c5fd" }}>{eur(kpi.ricorrenteMensile)}<span style={{fontSize:12, color:"#64748b"}}>/mese</span></div>
+                </div>
+                <div style={{ background:"#1c1205", borderRadius:8, padding:"9px 10px", border:"1px solid #92400e", flex:1 }}>
+                  <div style={{ fontSize:10, color:"#92400e", marginBottom:3 }}>Comm. mensile ricorrente</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:"#fcd34d" }}>{eur(kpi.commMensile)}<span style={{fontSize:11, color:"#92400e"}}>/mese</span></div>
+                  <div style={{ fontSize:9, color:"#92400e", marginTop:2 }}>ogni mese finche attivo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ ...S.grid2, marginBottom:10 }}>
+            <KPICard icon="🎯" label="App / Chiamate" value={kpi.tasso_app!=="—"?kpi.tasso_app+"%":"—"} accent="#3b82f6"/>
+            <KPICard icon="📈" label="Chiusura / Anteprime" value={kpi.tasso_chiusura!=="—"?kpi.tasso_chiusura+"%":"—"} accent="#22c55e"/>
+          </div>
+
+          <div style={S.card}>
+            <div style={S.h3}>Lead per stato</div>
+            {STATI.map(s=>{
+              const n=mine.filter(l=>l.stato===s).length;
+              const pct=mine.length>0?(n/mine.length*100):0;
+              const c=STATO_COLORS[s];
+              return (
+                <div key={s} style={{ marginBottom:9 }}>
+                  <div style={{ ...S.flexB, marginBottom:2 }}>
+                    <span style={{ fontSize:12, color:"#94a3b8" }}>{s}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:c?.dot||"#fff" }}>{n}</span>
+                  </div>
+                  <div style={{ background:"#0a1120", borderRadius:4, height:5 }}>
+                    <div style={{ width:`${pct}%`, background:c?.dot||"#3b82f6", height:5, borderRadius:4, transition:"width 0.5s" }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {/* ── SCRIPT ── */}
+      {tab==="script" && (
+        <>
+          <div style={{ color:"#64748b", fontSize:12, marginBottom:12 }}>Tocca una sezione per espanderla durante la chiamata.</div>
+          {SCRIPT_SECTIONS.map(sec=>(
+            <div key={sec.id} style={{ ...S.card, cursor:"pointer", borderLeftWidth:3, borderLeftColor:sec.color }} onClick={()=>setOpenScript(openScript===sec.id?null:sec.id)}>
+              <div style={S.flexB}>
+                <div style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{sec.title}</div>
+                <span style={{ color:"#475569" }}>{openScript===sec.id?"▲":"▼"}</span>
+              </div>
+              {openScript===sec.id && (
+                <div style={{ marginTop:12 }}>
+                  {sec.steps.map((step,i)=>(
+                    <div key={i} style={{ marginBottom:9, background:"#0a1120", borderRadius:8, padding:11, border:`1px solid ${sec.color}22` }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:sec.color, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:5 }}>{step.label}</div>
+                      <div style={{ color:"#e2e8f0", fontSize:13, lineHeight:1.6 }}>{step.text}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── MANAGER VIEW ────────────────────────────────────
+function ManagerView({ users, leads }) {
+  const [tab, setTab] = useState("overview");
+  const sellers = users.filter(u=>u.role==="seller");
+  const sellerStats = sellers.map(s=>({ ...s, kpi:computeKPI(leads.filter(l=>l.userId===s.id)) })).sort((a,b)=>b.kpi.fatturato-a.kpi.fatturato);
+  const totalKPI = computeKPI(leads);
+
+  // Setup incassato questo mese (una tantum) + primo mese ricorrente
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const venditeMese = leads.filter(l=>{
+    if (l.stato!=="Vendita chiusa"||!l.createdAt) return false;
+    const d = new Date(l.createdAt);
+    return d.getMonth()===thisMonth && d.getFullYear()===thisYear;
+  });
+  // Incassato subito questo mese = setup + primo mese di ogni contratto chiuso questo mese
+  const setupMese = venditeMese.reduce((acc,l)=>acc+(parseFloat(l.prezzoSetup)||0),0);
+  const primoMensile = venditeMese.reduce((acc,l)=>acc+(parseFloat(l.prezzoMensile)||0),0);
+  const incassatoMese = setupMese + primoMensile;
+  // Ricorrente mensile totale da tutti i contratti attivi
+  const ricorrenteTeam = leads.filter(l=>l.stato==="Vendita chiusa").reduce((acc,l)=>acc+(parseFloat(l.prezzoMensile)||0),0);
+  // Setup totale team
+  const setupTotaleTeam = leads.filter(l=>l.stato==="Vendita chiusa").reduce((acc,l)=>acc+(parseFloat(l.prezzoSetup)||0),0);
+  const nicchiaStats = NICCHIE.map(n=>({
+    name:n,
+    totale:leads.filter(l=>l.nicchia===n).length,
+    vendite:leads.filter(l=>l.nicchia===n&&l.stato==="Vendita chiusa").length,
+    fatturato:leads.filter(l=>l.nicchia===n&&l.stato==="Vendita chiusa").reduce((acc,l)=>acc+(parseFloat(l.prezzoSetup)||0)+(parseFloat(l.prezzoMensile)||0)*(parseInt(l.mesiContratto)||0),0),
+  })).filter(n=>n.totale>0).sort((a,b)=>b.fatturato-a.fatturato);
+
+  // Tutti gli appuntamenti del team
+  const allApp = leads.filter(l=>(l.stato==="Appuntamento fissato"||l.stato==="Anteprima mostrata")&&l.dataAppuntamento)
+    .sort((a,b)=>new Date(a.dataAppuntamento)-new Date(b.dataAppuntamento));
+
+  return (
+    <div style={S.page}>
+      <div style={{ ...S.flexB, marginBottom:18, flexWrap:"wrap", gap:8 }}>
+        <div>
+          <div style={S.h1}>Dashboard Manager 👑</div>
+          <div style={{ color:"#475569", fontSize:12 }}>Visione completa del team</div>
+        </div>
+        <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+          {["overview","fatturato","agenda","classifica","allleads"].map(t=>(
+            <TabBtn key={t} label={t==="overview"?"📊 Overview":t==="fatturato"?"💶 Fatturato":t==="agenda"?"📅 Agenda":t==="classifica"?"🏆 Classifica":"📋 Lead"} active={tab===t} onClick={()=>setTab(t)}/>
+          ))}
+        </div>
+      </div>
+
+      {/* ── OVERVIEW ── */}
+      {tab==="overview" && (
+        <>
+          <div style={{ ...S.grid2, marginBottom:10 }}>
+            <KPICard icon="📞" label="Chiamate totali" value={totalKPI.chiamate} accent="#3b82f6"/>
+            <KPICard icon="📅" label="Appuntamenti" value={totalKPI.appuntamenti} accent="#22c55e"/>
+            <KPICard icon="👁️" label="Anteprime" value={totalKPI.anteprime} accent="#8b5cf6"/>
+            <KPICard icon="💰" label="Vendite chiuse" value={totalKPI.vendite} accent="#f59e0b"/>
+          </div>
+          <div style={S.cardGold}>
+            <div style={{ ...S.h3, color:"#fdba74" }}>FATTURATO TEAM</div>
+            <div style={S.grid2}>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Setup incassato (tot.)</div>
+                <div style={{ fontSize:20, fontWeight:900, color:"#f59e0b" }}>{eur(setupTotaleTeam)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>pagato subito alla firma</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Incassato questo mese</div>
+                <div style={{ fontSize:20, fontWeight:900, color:"#fdba74" }}>{eur(incassatoMese)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>setup + 1° mese nuovi contratti</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Ricorrente mensile attivo</div>
+                <div style={{ fontSize:20, fontWeight:900, color:"#fcd34d" }}>{eur(ricorrenteTeam)}/mese</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>entra ogni mese dai contratti attivi</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Commissioni totali dovute</div>
+                <div style={{ fontSize:20, fontWeight:900, color:"#fca5a5" }}>{eur(totalKPI.commissioni)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>10% setup + 10% mensile</div>
+              </div>
+            </div>
+          </div>
+          {/* Venditori - full width stacked */}
+          <div style={S.card}>
+            <div style={S.h3}>VENDITORI</div>
+            {sellerStats.map((s,i)=>(
+              <div key={s.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderBottom:"1px solid #0f1e33", gap:8 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:26, height:26, borderRadius:"50%", background:["#f59e0b","#94a3b8","#cd7f32","#64748b"][i]||"#1e2d45", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, color:"#fff", flexShrink:0 }}>{i+1}</div>
+                  <div>
+                    <div style={{ fontWeight:700, color:"#fff", fontSize:13 }}>{s.name}</div>
+                    <div style={{ color:"#475569", fontSize:11 }}>{s.kpi.vendite} vendite · setup {eur(s.kpi.fatturatoSetup)} · {eur(s.kpi.ricorrenteMensile)}/mese</div>
+                  </div>
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <div style={{ fontWeight:800, color:"#f59e0b", fontSize:13 }}>{eur(s.kpi.commSetup+s.kpi.commMensile)}</div>
+                  <div style={{ color:"#475569", fontSize:10 }}>comm. dovute</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Per nicchia - full width */}
+          {nicchiaStats.length>0 && (
+            <div style={S.card}>
+              <div style={S.h3}>PER NICCHIA</div>
+              {nicchiaStats.map(n=>(
+                <div key={n.name} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 0", borderBottom:"1px solid #0f1e33", gap:8 }}>
+                  <div>
+                    <div style={{ color:"#94a3b8", fontSize:12, fontWeight:600 }}>{n.name}</div>
+                    <div style={{ color:"#64748b", fontSize:10, marginTop:2 }}>{n.totale} lead · {n.vendite} vendite</div>
+                  </div>
+                  <div style={{ color:"#4ade80", fontWeight:700, fontSize:13, flexShrink:0 }}>{eur(n.fatturato)}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+
+      {/* ── FATTURATO ── */}
+      {tab==="fatturato" && (
+        <>
+          <div style={S.cardGold}>
+            <div style={{ ...S.h3, color:"#fdba74" }}>RIEPILOGO FATTURATO TEAM</div>
+            <div style={S.grid2}>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Setup totale incassato</div>
+                <div style={{ fontSize:22, fontWeight:900, color:"#f59e0b" }}>{eur(setupTotaleTeam)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>pagato subito alla firma</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Ricorrente mensile attivo</div>
+                <div style={{ fontSize:22, fontWeight:900, color:"#fcd34d" }}>{eur(ricorrenteTeam)}/mese</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>entra ogni mese dai contratti</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Incassato questo mese</div>
+                <div style={{ fontSize:22, fontWeight:900, color:"#fdba74" }}>{eur(incassatoMese)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>setup + 1° mese nuovi contratti</div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:"#92400e" }}>Tot. commissioni dovute</div>
+                <div style={{ fontSize:22, fontWeight:900, color:"#fca5a5" }}>{eur(totalKPI.commissioni)}</div>
+                <div style={{ fontSize:10, color:"#92400e", marginTop:2 }}>10% setup + 10%/mese</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={S.h2}>Dettaglio per venditore</div>
+          {sellerStats.map((s,i)=>{
+            const medals=["🥇","🥈","🥉","4️⃣"];
+            const contratti = leads.filter(l=>l.userId===s.id&&l.stato==="Vendita chiusa");
+            const setupV = contratti.reduce((a,l)=>a+(parseFloat(l.prezzoSetup)||0),0);
+            const ricV = contratti.reduce((a,l)=>a+(parseFloat(l.prezzoMensile)||0),0);
+            return (
+              <div key={s.id} style={{ ...S.card, borderLeftWidth:3, borderLeftColor:["#f59e0b","#94a3b8","#cd7f32","#64748b"][i]||"#1e2d45" }}>
+                <div style={{ ...S.flexB, marginBottom:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:22 }}>{medals[i]||"👤"}</span>
+                    <div>
+                      <div style={{ fontWeight:800, color:"#fff", fontSize:14 }}>{s.name}</div>
+                      <div style={{ color:"#475569", fontSize:12 }}>{s.kpi.vendite} vendite chiuse</div>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ ...S.grid2, marginBottom:10 }}>
+                  <div style={{ background:"#0a1120", borderRadius:8, padding:"10px 12px" }}>
+                    <div style={{ fontSize:10, color:"#64748b" }}>Setup incassato</div>
+                    <div style={{ fontSize:16, fontWeight:900, color:"#4ade80" }}>{eur(setupV)}</div>
+                    <div style={{ fontSize:9, color:"#475569", marginTop:2 }}>pagato subito</div>
+                  </div>
+                  <div style={{ background:"#0c1a3a", borderRadius:8, padding:"10px 12px" }}>
+                    <div style={{ fontSize:10, color:"#64748b" }}>Ricorrente mensile</div>
+                    <div style={{ fontSize:16, fontWeight:900, color:"#93c5fd" }}>{eur(ricV)}/mese</div>
+                    <div style={{ fontSize:9, color:"#475569", marginTop:2 }}>ogni mese attivo</div>
+                  </div>
+                  <div style={{ background:"#052e16", borderRadius:8, padding:"10px 12px" }}>
+                    <div style={{ fontSize:10, color:"#166534" }}>Comm. setup (10%)</div>
+                    <div style={{ fontSize:16, fontWeight:900, color:"#4ade80" }}>{eur(setupV*0.1)}</div>
+                    <div style={{ fontSize:9, color:"#475569", marginTop:2 }}>già incassata</div>
+                  </div>
+                  <div style={{ background:"#1c1205", borderRadius:8, padding:"10px 12px", border:"1px solid #92400e" }}>
+                    <div style={{ fontSize:10, color:"#92400e" }}>Comm. mensile (10%)</div>
+                    <div style={{ fontSize:16, fontWeight:900, color:"#f59e0b" }}>{eur(ricV*0.1)}/mese</div>
+                    <div style={{ fontSize:9, color:"#92400e", marginTop:2 }}>ricorrente</div>
+                  </div>
+                </div>
+                {contratti.length>0 && (
+                  <div>
+                    <div style={{ fontSize:10, color:"#64748b", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.06em" }}>Contratti attivi</div>
+                    {contratti.map(l=>{
+                      const setup=parseFloat(l.prezzoSetup)||0;
+                      const mensile=parseFloat(l.prezzoMensile)||0;
+                      const mesi=parseInt(l.mesiContratto)||0;
+                      return (
+                        <div key={l.id} style={{ background:"#0a1120", borderRadius:6, padding:"8px 10px", marginBottom:5 }}>
+                          <div style={{ ...S.flexB, marginBottom:3 }}>
+                            <span style={{ color:"#e2e8f0", fontSize:12, fontWeight:600 }}>{l.nome||"—"}</span>
+                            <span style={{ color:"#4ade80", fontSize:11, fontWeight:700 }}>{eur(setup+(mensile*mesi))} tot.</span>
+                          </div>
+                          <div style={{ color:"#64748b", fontSize:11 }}>
+                            Setup: {eur(setup)} pagato subito · {eur(mensile)}/mese × {mesi} mesi
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </>
+      )}
+
+
+      {/* ── AGENDA MANAGER ── */}
+      {tab==="agenda" && (
+        <>
+          <div style={{ ...S.h2, marginBottom:14 }}>📅 Tutti gli appuntamenti del team</div>
+          {allApp.length===0 ? (
+            <div style={{ ...S.card, textAlign:"center", padding:36, color:"#475569" }}><div style={{ fontSize:32, marginBottom:8 }}>📅</div>Nessun appuntamento fissato nel team.</div>
+          ) : allApp.map(lead=>{
+            const seller=users.find(u=>u.id===lead.userId);
+            const days=daysUntil(lead.dataAppuntamento);
+            const urgColor=days===0?"#f97316":days<0?"#ef4444":"#22c55e";
+            return (
+              <div key={lead.id} style={{ ...S.card, borderLeftWidth:3, borderLeftColor:urgColor }}>
+                <div style={{ ...S.flexB, flexWrap:"wrap", gap:6 }}>
+                  <div>
+                    <div style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{lead.nome}</div>
+                    <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>
+                      📞 {lead.telefono||"—"} · 👤 <span style={{ color:"#93c5fd" }}>{seller?.name||"—"}</span> · 🏷️ {lead.nicchia}
+                    </div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontWeight:800, color:urgColor, fontSize:14 }}>{formatDate(lead.dataAppuntamento)}{lead.oraAppuntamento&&" — "+lead.oraAppuntamento}</div>
+                    <div style={{ fontSize:11, color:urgColor }}>{days<0?"Scaduto":days===0?"Oggi":days===1?"Domani":days+" giorni"}</div>
+                  </div>
+                </div>
+                <Badge stato={lead.stato}/>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── CLASSIFICA ── */}
+      {tab==="classifica" && (
+        <div style={S.card}>
+          <div style={{ ...S.h2, marginBottom:18 }}>🏆 Classifica Venditori</div>
+          {sellerStats.map((s,i)=>{
+            const medals=["🥇","🥈","🥉","4️⃣"];
+            const pct=sellerStats[0]?.kpi.vendite>0?(s.kpi.vendite/sellerStats[0].kpi.vendite*100):0;
+            return (
+              <div key={s.id} style={{ ...S.card, marginBottom:10, border:i===0?"1px solid #d97706":"1px solid #1e2d45", background:i===0?"#1c1205":"#0d1520" }}>
+                <div style={{ ...S.flexB, marginBottom:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <span style={{ fontSize:24 }}>{medals[i]||"👤"}</span>
+                    <div>
+                      <div style={{ fontWeight:800, color:"#fff", fontSize:14 }}>{s.name}</div>
+                      <div style={{ color:"#475569", fontSize:11 }}>{s.kpi.chiamate} chiam. · {s.kpi.appuntamenti} app. · {s.kpi.anteprime} ant.</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:26, fontWeight:900, color:i===0?"#f59e0b":"#4ade80" }}>{s.kpi.vendite}</div>
+                    <div style={{ color:"#475569", fontSize:10 }}>vendite</div>
+                  </div>
+                </div>
+                <div style={{ background:"#0a1120", borderRadius:5, height:6 }}>
+                  <div style={{ width:`${pct}%`, background:i===0?"#f59e0b":"#22c55e", height:6, borderRadius:5, transition:"width 0.6s" }}/>
+                </div>
+                <div style={{ display:"flex", gap:12, marginTop:7 }}>
+                  <span style={{ fontSize:11, color:"#64748b" }}>App/Chiamate: <b style={{ color:"#93c5fd" }}>{s.kpi.tasso_app}{s.kpi.tasso_app!=="—"?"%":""}</b></span>
+                  <span style={{ fontSize:11, color:"#64748b" }}>Fatturato: <b style={{ color:"#4ade80" }}>{eur(s.kpi.fatturato)}</b></span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── TUTTI I LEAD ── */}
+      {tab==="allleads" && (
+        <div>
+          <div style={{ ...S.h2, marginBottom:12 }}>Tutti i Lead — {leads.length} totali</div>
+          {leads.length===0 ? (
+            <div style={{ ...S.card, textAlign:"center", padding:36, color:"#475569" }}><div style={{ fontSize:32, marginBottom:8 }}>📋</div>Nessun lead ancora.</div>
+          ) : [...leads].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(lead=>{
+            const seller=users.find(u=>u.id===lead.userId);
+            return (
+              <div key={lead.id} style={{ ...S.card, marginBottom:7, borderLeftWidth:3, borderLeftColor:STATO_COLORS[lead.stato]?.dot||"#1e2d45" }}>
+                <div style={{ ...S.flexB, flexWrap:"wrap", gap:5 }}>
+                  <div>
+                    <div style={{ fontWeight:700, color:"#fff", fontSize:13 }}>{lead.nome||"—"}</div>
+                    <div style={{ color:"#64748b", fontSize:11, marginTop:2 }}>📞 {lead.telefono||"—"} · 🏷️ {lead.nicchia} · 👤 <span style={{ color:"#93c5fd" }}>{seller?.name||"—"}</span></div>
+                    {lead.stato==="Vendita chiusa"&&lead.prezzoSetup&&(
+                      <div style={{ marginTop:5, background:"#052e16", borderRadius:6, padding:"6px 9px", border:"1px solid #166534" }}>
+                        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                          <div><div style={{ fontSize:9, color:"#64748b" }}>Setup</div><div style={{ color:"#4ade80", fontSize:12, fontWeight:700 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div></div>
+                          <div><div style={{ fontSize:9, color:"#64748b" }}>Mensile</div><div style={{ color:"#93c5fd", fontSize:12, fontWeight:700 }}>{eur(parseFloat(lead.prezzoMensile)||0)}<span style={{fontSize:9, color:"#64748b"}}>/mese x{lead.mesiContratto}</span></div></div>
+                          <div><div style={{ fontSize:9, color:"#64748b" }}>Totale contratto</div><div style={{ color:"#fcd34d", fontSize:12, fontWeight:700 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Badge stato={lead.stato}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CONFIG SUPABASE ─────────────────────────────────
+// Incolla qui i tuoi dati Supabase
+const SUPABASE_URL = "INCOLLA_QUI_URL";       // es: https://xxxx.supabase.co
+const SUPABASE_KEY = "INCOLLA_QUI_ANON_KEY";  // la anon/public key
+
+const db = {
+  get h() {
+    return {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Prefer": "return=minimal"
+    };
+  },
+  async getAll() {
+    const res = await fetch(SUPABASE_URL + "/rest/v1/leads?select=*", {
+      headers: { ...this.h, "Prefer": "" }
+    });
+    return await res.json();
+  },
+  async add(lead) {
+    await fetch(SUPABASE_URL + "/rest/v1/leads", {
+      method: "POST", headers: this.h, body: JSON.stringify(lead)
+    });
+  },
+  async update(lead) {
+    await fetch(SUPABASE_URL + "/rest/v1/leads?id=eq." + lead.id, {
+      method: "PATCH", headers: this.h, body: JSON.stringify(lead)
+    });
+  },
+  async remove(id) {
+    await fetch(SUPABASE_URL + "/rest/v1/leads?id=eq." + id, {
+      method: "DELETE", headers: this.h
+    });
+  }
+};
+
+const useSheets = SUPABASE_URL !== "INCOLLA_QUI_URL";
+
+// ─── ROOT ────────────────────────────────────────────
+function App() {
+  const [leads, setLeads]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [syncing, setSyncing]   = useState(false);
+  const [users]                 = useState(INITIAL_USERS);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Carica leads da Google Sheets al login
+  useEffect(() => {
+    if (!currentUser || !useSheets) return;
+    setLoading(true);
+    db.getAll()
+      .then(data => setLeads(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [currentUser]);
+
+  // Wrapper che salva su Sheets + aggiorna stato locale
+  const addLead = async (lead) => {
+    setLeads(ls => [...ls, lead]);
+    if (!useSheets) return;
+    setSyncing(true);
+    try { await db.add(lead); } catch(e) {}
+    setSyncing(false);
+  };
+
+  const updateLead = async (lead) => {
+    setLeads(ls => ls.map(l => l.id === lead.id ? lead : l));
+    if (!useSheets) return;
+    setSyncing(true);
+    try { await db.update(lead); } catch(e) {}
+    setSyncing(false);
+  };
+
+  const deleteLead = async (id) => {
+    setLeads(ls => ls.filter(l => l.id !== id));
+    if (!useSheets) return;
+    setSyncing(true);
+    try { await db.remove(id); } catch(e) {}
+    setSyncing(false);
+  };
+
+  if (!currentUser) return <Login users={users} onLogin={setCurrentUser}/>;
+
+  if (loading) return (
+    <div style={{ ...S.app, display:"flex", alignItems:"center", justifyContent:"center", flexDirection:"column", gap:16 }}>
+      <div style={{ fontSize:36 }}>⚡</div>
+      <div style={{ color:"#fff", fontWeight:700 }}>Caricamento dati...</div>
+      <div style={{ color:"#475569", fontSize:13 }}>Connessione a Supabase</div>
+    </div>
+  );
+
+  return (
+    <div style={S.app}>
+      <nav style={S.nav}>
+        <div style={{ fontWeight:800, fontSize:16, color:"#fff", letterSpacing:"-0.5px" }}>Sales<span style={{ color:"#3b82f6" }}>World</span> <span style={{ color:"#1e3a5f", fontSize:12 }}>CRM</span></div>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {syncing && <span style={{ fontSize:11, color:"#f59e0b" }}>💾 Salvataggio...</span>}
+          {useSheets && !syncing && <span style={{ fontSize:11, color:"#22c55e" }}>☁️ Connesso</span>}
+          <span style={{ color:"#64748b", fontSize:12 }}>{currentUser.name}{currentUser.role==="manager"?" 👑":""}</span>
+          <button style={{ ...S.btn, ...S.btnG, fontSize:11, padding:"5px 11px" }} onClick={()=>setCurrentUser(null)}>Esci</button>
+        </div>
+      </nav>
+      {currentUser.role==="manager"
+        ? <ManagerView users={users} leads={leads}/>
+        : <SellerView user={currentUser} leads={leads} addLead={addLead} updateLead={updateLead} deleteLead={deleteLead}/>
+      }
+    </div>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
