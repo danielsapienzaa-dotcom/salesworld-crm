@@ -851,7 +851,7 @@ function ManagerView({ users, leads }) {
 // ─── CONFIG SUPABASE ─────────────────────────────────
 // Incolla qui i tuoi dati Supabase
 const SUPABASE_URL = "https://muemzyhhzozycisvijcw.supabase.co";
-const SUPABASE_KEY = "INCOLLA_QUI_ANON_KEY";  // la anon/public key
+const SUPABASE_KEY = "sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg";  // la anon/public key
 
 const db = {
   get h() {
@@ -885,7 +885,7 @@ const db = {
   }
 };
 
-const useSheets = SUPABASE_URL !== "INCOLLA_QUI_URL";
+const useSheets = SUPABASE_URL !== "https://muemzyhhzozycisvijcw.supabase.co";
 
 // ─── ROOT ────────────────────────────────────────────
 function App() {
