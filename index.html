@@ -18,7 +18,11 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel">
+
+  <script>
+</script>
+
+<script type="text/babel">
     const { useState, useEffect } = React;
 
 // React loaded via CDN
@@ -30,6 +34,18 @@ const INITIAL_USERS = [
   { id: "v3", name: "Thomas", role: "seller", password: "v3pass" },
   { id: "v4", name: "Giancarlo", role: "seller", password: "v4pass" },
 ];
+
+// ── DATI AZIENDA (modifica questi per personalizzare i contratti) ──
+const AZIENDA = {
+  nome: "SalesWorld",
+  piva: "IT01234567890",
+  indirizzo: "Via Roma 1, 27100 Pavia (PV)",
+  telefono: "+39 0382 000000",
+  email: "info@salesworld.it",
+  iban: "IT60 X054 2811 1010 0000 0123 456",
+};
+window._AZIENDA = AZIENDA; // expose to plain JS
+
 
 const NICCHIE = ["Ristorante/Bar","Estetista/Centro Benessere","Artigiano/Idraulico","Artigiano/Elettricista","Artigiano/Imbianchino","Parrucchiere/Barbiere","Officina/Carrozzeria","Altro"];
 const STATI = ["Da chiamare","Non risposto","Richiamato","Appuntamento fissato","Anteprima mostrata","Vendita chiusa","Rifiuto definitivo"];
@@ -268,6 +284,8 @@ function LeadForm({ onSave, onCancel, initial }) {
 }
 
 // ─── SELLER VIEW ─────────────────────────────────────
+
+
 function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
   const [tab, setTab] = useState("leads");
   const [showForm, setShowForm] = useState(false);
@@ -276,6 +294,9 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
   const [search, setSearch] = useState("");
   const [openScript, setOpenScript] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingLead, setEditingLead] = useState(null);
+  const [confirmDeleteMgr, setConfirmDeleteMgr] = useState(null);
+
 
   const mine = leads.filter(l => l.userId===user.id);
   const kpi = computeKPI(mine);
@@ -306,6 +327,7 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
 
   return (
     <div style={S.page}>
+      
       <div style={{ ...S.flexB, marginBottom:18, flexWrap:"wrap", gap:8 }}>
         <div>
           <div style={S.h1}>Ciao, {user.name} 👋</div>
@@ -374,35 +396,45 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
                       <div style={{ color:"#64748b", fontSize:12, marginTop:2 }}>📞 {lead.telefono||"—"} · 📍 {lead.zona||"—"} · 🏷️ {lead.nicchia}</div>
                       {lead.dataAppuntamento && <div style={{ color:"#22c55e", fontSize:12, marginTop:2 }}>📅 App: {formatDate(lead.dataAppuntamento)} {lead.oraAppuntamento && "alle "+lead.oraAppuntamento}</div>}
                       {lead.stato==="Vendita chiusa" && lead.prezzoSetup && (
-                        <div style={{ marginTop:6, background:"#052e16", borderRadius:7, padding:"8px 12px", border:"1px solid #166534", display:"flex", gap:0, overflow:"hidden" }}>
-                          <div style={{ flex:1, borderRight:"1px solid #166534", paddingRight:10 }}>
-                            <div style={{ fontSize:9, color:"#166534", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:2 }}>Setup</div>
-                            <div style={{ color:"#4ade80", fontSize:14, fontWeight:800 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div>
-                            <div style={{ color:"#166534", fontSize:9 }}>subito</div>
-                          </div>
-                          <div style={{ flex:1, borderRight:"1px solid #166534", padding:"0 10px" }}>
-                            <div style={{ fontSize:9, color:"#166534", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:2 }}>Mensile</div>
-                            <div style={{ color:"#93c5fd", fontSize:14, fontWeight:800 }}>{eur(parseFloat(lead.prezzoMensile)||0)}</div>
-                            <div style={{ color:"#166534", fontSize:9 }}>x{lead.mesiContratto} mesi</div>
-                          </div>
-                          <div style={{ flex:1, paddingLeft:10 }}>
-                            <div style={{ fontSize:9, color:"#166534", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:2 }}>Totale</div>
-                            <div style={{ color:"#fcd34d", fontSize:14, fontWeight:800 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div>
-                            <div style={{ color:"#166534", fontSize:9 }}>contratto</div>
+                        <div style={{ marginTop:8, background:"#052e16", borderRadius:8, border:"1px solid #166534", overflow:"hidden" }}>
+                          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr" }}>
+                            <div style={{ padding:"8px 10px", borderRight:"1px solid #166534" }}>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>Setup</div>
+                              <div style={{ color:"#4ade80", fontSize:14, fontWeight:700 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div>
+                              <div style={{ color:"#166534", fontSize:9, marginTop:1 }}>subito</div>
+                            </div>
+                            <div style={{ padding:"8px 10px", borderRight:"1px solid #166534" }}>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>Mensile</div>
+                              <div style={{ color:"#93c5fd", fontSize:14, fontWeight:700 }}>{eur(parseFloat(lead.prezzoMensile)||0)}</div>
+                              <div style={{ color:"#166534", fontSize:9, marginTop:1 }}>x {lead.mesiContratto} mesi</div>
+                            </div>
+                            <div style={{ padding:"8px 10px" }}>
+                              <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:3 }}>Totale</div>
+                              <div style={{ color:"#fcd34d", fontSize:14, fontWeight:700 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div>
+                              <div style={{ color:"#166534", fontSize:9, marginTop:1 }}>contratto</div>
+                            </div>
                           </div>
                         </div>
                       )}
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
                       <Badge stato={lead.stato}/>
+                      {lead.userId===user.id && lead.stato==="Vendita chiusa" && (
+                        <button style={{ ...S.btn, background:"#1c3a1c", color:"#4ade80", border:"1px solid #166534", padding:"5px 10px", fontSize:12, fontWeight:700 }}
+                          onClick={()=>{ window._lead=lead; window._seller=user; document.getElementById("cmodal").style.display="flex"; }}>
+                          📄 Contratto
+                        </button>
+                      )}
                       {lead.userId!==user.id && lead.stato==="Da chiamare" && (
                         <button style={{ ...S.btn, background:"#1e3a5f", color:"#93c5fd", border:"1px solid #1e3a8f", padding:"4px 10px", fontSize:12, fontWeight:700 }}
                           onClick={()=>updateLead({...lead, userId:user.id, stato:"Da chiamare"})}>
                           📞 Prendi in carico
                         </button>
                       )}
-                      {lead.userId===user.id && <button style={{ ...S.btn, ...S.btnG, padding:"4px 9px", fontSize:12 }} onClick={()=>setEditing(lead)}>✏️</button>}
-                      {lead.userId===user.id && <button style={{ ...S.btn, ...S.btnD, padding:"4px 9px", fontSize:12 }} onClick={()=>setConfirmDelete(lead.id)}>🗑️</button>}
+                      <div style={{ display:"flex", gap:5 }}>
+                        {lead.userId===user.id && <button style={{ ...S.btn, ...S.btnG, padding:"4px 9px", fontSize:12 }} onClick={()=>setEditing(lead)}>✏️</button>}
+                        {lead.userId===user.id && <button style={{ ...S.btn, ...S.btnD, padding:"4px 9px", fontSize:12 }} onClick={()=>setConfirmDelete(lead.id)}>🗑️</button>}
+                      </div>
                     </div>
                   </div>
                   {lead.note && <div style={{ marginTop:7, color:"#64748b", fontSize:12, background:"#0a1120", padding:"6px 10px", borderRadius:7 }}>{lead.note}</div>}
@@ -544,6 +576,61 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
 // ─── MANAGER VIEW ────────────────────────────────────
 function ManagerView({ users, leads }) {
   const [tab, setTab] = useState("overview");
+  const [editingLead, setEditingLead] = useState(null);
+  const [confirmDeleteMgr, setConfirmDeleteMgr] = useState(null);
+  const [contratti, setContratti] = useState([]);
+  const [loadingC, setLoadingC] = useState(false);
+  const [filtroC, setFiltroC] = useState("tutti");
+  const [editNotaC, setEditNotaC] = useState(null);
+
+  const caricaContratti = async (silent=false) => {
+    if(!silent) setLoadingC(true);
+    try {
+      const r = await fetch(SUPABASE_URL+"/rest/v1/contratti?select=*&order=created_at.desc",{headers:db.h});
+      if(r.ok) setContratti(await r.json());
+    } catch(e){}
+    if(!silent) setLoadingC(false);
+  };
+
+  // Carica quando si apre il tab + polling ogni 20 secondi
+  useEffect(()=>{
+    if(tab==="contratti"){
+      caricaContratti();
+      const interval = setInterval(()=>caricaContratti(true), 20000);
+      return ()=>clearInterval(interval);
+    }
+  },[tab]);
+
+  // Refresh immediato quando un venditore salva un contratto (stessa sessione)
+  useEffect(()=>{
+    const handler = ()=>{ if(tab==="contratti") caricaContratti(true); };
+    window.addEventListener("contrattoSalvato", handler);
+    return ()=>window.removeEventListener("contrattoSalvato", handler);
+  },[tab]);
+
+  const aggiornaAzioneC = async (id, azione) => {
+    if(!id) return;
+    setContratti(prev=>prev.map(c=>c.id===id?{...c,azione}:c));
+    try {
+      await fetch(SUPABASE_URL+"/rest/v1/contratti?id=eq."+id, {
+        method:"PATCH", headers:{...db.h,"Prefer":"return=minimal"},
+        body:JSON.stringify({azione})
+      });
+    } catch(e){}
+  };
+
+  const salvaNotaC = async (id, nota) => {
+    if(!id) return;
+    setContratti(prev=>prev.map(c=>c.id===id?{...c,nota_manager:nota}:c));
+    setEditNotaC(null);
+    try {
+      await fetch(SUPABASE_URL+"/rest/v1/contratti?id=eq."+id, {
+        method:"PATCH", headers:{...db.h,"Prefer":"return=minimal"},
+        body:JSON.stringify({nota_manager:nota})
+      });
+    } catch(e){}
+  };
+
   const sellers = users.filter(u=>u.role==="seller");
   const sellerStats = sellers.map(s=>({ ...s, kpi:computeKPI(leads.filter(l=>l.userId===s.id)) })).sort((a,b)=>b.kpi.fatturato-a.kpi.fatturato);
   const totalKPI = computeKPI(leads);
@@ -586,14 +673,28 @@ function ManagerView({ users, leads }) {
 
   return (
     <div style={S.page}>
+      {editingLead && <LeadForm initial={editingLead} onSave={async l=>{await updateLead(l); setEditingLead(null);}} onCancel={()=>setEditingLead(null)}/>}
+      {confirmDeleteMgr && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div style={{ background:"#0d1520", border:"1px solid #7f1d1d", borderRadius:14, padding:28, maxWidth:340, width:"100%", textAlign:"center" }}>
+            <div style={{ fontSize:28, marginBottom:10 }}>🗑️</div>
+            <div style={{ color:"#fff", fontWeight:700, fontSize:16, marginBottom:8 }}>Elimina lead?</div>
+            <div style={{ color:"#64748b", fontSize:13, marginBottom:20 }}>Questa azione non si puo annullare.</div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button style={{ flex:1, padding:"11px", background:"#1e2d45", border:"none", borderRadius:8, color:"#94a3b8", cursor:"pointer" }} onClick={()=>setConfirmDeleteMgr(null)}>Annulla</button>
+              <button style={{ flex:1, padding:"11px", background:"#7f1d1d", border:"none", borderRadius:8, color:"#fff", fontWeight:700, cursor:"pointer" }} onClick={async()=>{ await deleteLead(confirmDeleteMgr); setConfirmDeleteMgr(null); }}>Elimina</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ ...S.flexB, marginBottom:18, flexWrap:"wrap", gap:8 }}>
         <div>
           <div style={S.h1}>Dashboard Manager 👑</div>
           <div style={{ color:"#475569", fontSize:12 }}>Visione completa del team</div>
         </div>
         <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-          {["overview","fatturato","agenda","classifica","allleads"].map(t=>(
-            <TabBtn key={t} label={t==="overview"?"📊 Overview":t==="fatturato"?"💶 Fatturato":t==="agenda"?"📅 Agenda":t==="classifica"?"🏆 Classifica":"📋 Lead"} active={tab===t} onClick={()=>setTab(t)}/>
+          {["overview","fatturato","agenda","classifica","allleads","contratti"].map(t=>(
+            <TabBtn key={t} label={t==="overview"?"📊 Overview":t==="fatturato"?"💶 Fatturato":t==="agenda"?"📅 Agenda":t==="classifica"?"🏆 Classifica":t==="allleads"?"📋 Lead":"📄 Contratti"} active={tab===t} onClick={()=>setTab(t)}/>
           ))}
         </div>
       </div>
@@ -852,22 +953,162 @@ function ManagerView({ users, leads }) {
           ) : [...leads].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(lead=>{
             const seller=users.find(u=>u.id===lead.userId);
             return (
-              <div key={lead.id} style={{ ...S.card, marginBottom:7, borderLeftWidth:3, borderLeftColor:STATO_COLORS[lead.stato]?.dot||"#1e2d45" }}>
-                <div style={{ ...S.flexB, flexWrap:"wrap", gap:5 }}>
-                  <div>
-                    <div style={{ fontWeight:700, color:"#fff", fontSize:13 }}>{lead.nome||"—"}</div>
-                    <div style={{ color:"#64748b", fontSize:11, marginTop:2 }}>📞 {lead.telefono||"—"} · 🏷️ {lead.nicchia} · 👤 <span style={{ color:"#93c5fd" }}>{seller?.name||"—"}</span></div>
+              <div key={lead.id} style={{ ...S.card, marginBottom:8, borderLeftWidth:3, borderLeftColor:STATO_COLORS[lead.stato]?.dot||"#1e2d45" }}>
+                <div style={{ ...S.flexB, flexWrap:"wrap", gap:6, alignItems:"flex-start" }}>
+                  {/* LEFT: tutte le info */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap", marginBottom:3 }}>
+                      <div style={{ fontWeight:700, color:"#fff", fontSize:14 }}>{lead.nome||"—"}</div>
+                      {lead.zona && <span style={{ fontSize:11, color:"#475569" }}>📍 {lead.zona}</span>}
+                    </div>
+                    <div style={{ color:"#64748b", fontSize:11, marginBottom:4 }}>
+                      📞 {lead.telefono||"—"} · 🏷️ {lead.nicchia||"—"}
+                    </div>
+                    <div style={{ fontSize:11, marginBottom:4 }}>
+                      👤 <span style={{ color:"#93c5fd", fontWeight:600 }}>{seller?.name||"Nessuno"}</span>
+                      {lead.dataAppuntamento && <span style={{ color:"#f59e0b", marginLeft:8 }}>📅 App: {formatDate(lead.dataAppuntamento)}{lead.oraAppuntamento?" alle "+lead.oraAppuntamento:""}</span>}
+                    </div>
+                    {lead.note && <div style={{ fontSize:11, color:"#64748b", background:"#080c14", borderRadius:5, padding:"4px 8px", marginBottom:4, fontStyle:"italic" }}>💬 {lead.note}</div>}
                     {lead.stato==="Vendita chiusa"&&lead.prezzoSetup&&(
-                      <div style={{ marginTop:5, background:"#052e16", borderRadius:6, padding:"6px 9px", border:"1px solid #166534" }}>
-                        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                          <div><div style={{ fontSize:9, color:"#64748b" }}>Setup</div><div style={{ color:"#4ade80", fontSize:12, fontWeight:700 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div></div>
-                          <div><div style={{ fontSize:9, color:"#64748b" }}>Mensile</div><div style={{ color:"#93c5fd", fontSize:12, fontWeight:700 }}>{eur(parseFloat(lead.prezzoMensile)||0)}<span style={{fontSize:9, color:"#64748b"}}>/mese x{lead.mesiContratto}</span></div></div>
-                          <div><div style={{ fontSize:9, color:"#64748b" }}>Totale contratto</div><div style={{ color:"#fcd34d", fontSize:12, fontWeight:700 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div></div>
+                      <div style={{ marginTop:6, background:"#052e16", borderRadius:8, border:"1px solid #166534", overflow:"hidden" }}>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr" }}>
+                          <div style={{ padding:"7px 10px", borderRight:"1px solid #166534" }}>
+                            <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", marginBottom:2 }}>Setup</div>
+                            <div style={{ color:"#4ade80", fontSize:13, fontWeight:700 }}>{eur(parseFloat(lead.prezzoSetup)||0)}</div>
+                            <div style={{ fontSize:9, color:"#166534" }}>subito</div>
+                          </div>
+                          <div style={{ padding:"7px 10px", borderRight:"1px solid #166534" }}>
+                            <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", marginBottom:2 }}>Mensile</div>
+                            <div style={{ color:"#93c5fd", fontSize:13, fontWeight:700 }}>{eur(parseFloat(lead.prezzoMensile)||0)}</div>
+                            <div style={{ fontSize:9, color:"#166534" }}>x {lead.mesiContratto} mesi</div>
+                          </div>
+                          <div style={{ padding:"7px 10px" }}>
+                            <div style={{ fontSize:9, color:"#64748b", textTransform:"uppercase", marginBottom:2 }}>Totale</div>
+                            <div style={{ color:"#fcd34d", fontSize:13, fontWeight:700 }}>{eur((parseFloat(lead.prezzoSetup)||0)+(parseFloat(lead.prezzoMensile)||0)*(parseInt(lead.mesiContratto)||0))}</div>
+                            <div style={{ fontSize:9, color:"#166534" }}>contratto</div>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
-                  <Badge stato={lead.stato}/>
+                  {/* RIGHT: badge + azioni */}
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0 }}>
+                    <Badge stato={lead.stato}/>
+
+                    <div style={{ display:"flex", gap:5 }}>
+                      <button style={{ ...S.btn, ...S.btnG, padding:"4px 8px", fontSize:11 }} onClick={()=>{ setEditingLead(lead); }}>✏️</button>
+                      <button style={{ ...S.btn, ...S.btnD, padding:"4px 8px", fontSize:11 }} onClick={()=>setConfirmDeleteMgr(lead.id)}>🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+      )}
+
+      {/* ── CONTRATTI ── */}
+      {tab==="contratti" && (
+        <div>
+          {/* Header con filtri */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+            <div style={{color:"#94a3b8",fontSize:13}}>{contratti.length} contratti salvati</div>
+            <button onClick={caricaContratti} style={{...S.btn,background:"#1e2d45",color:"#93c5fd",padding:"6px 14px",fontSize:12}}>🔄 Aggiorna</button>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
+            {["tutti","attivo","in_scadenza","scaduto","da_rinnovare","follow_up"].map(f=>(
+              <button key={f} onClick={()=>setFiltroC(f)} style={{
+                padding:"4px 10px",borderRadius:20,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                background:filtroC===f?"#3b82f6":"#1e2d45",
+                color:filtroC===f?"#fff":"#64748b"
+              }}>
+                {f==="tutti"?"Tutti":f==="attivo"?"✅ Attivi":f==="in_scadenza"?"⏳ In scadenza":f==="scaduto"?"⚠️ Scaduti":f==="da_rinnovare"?"🔄 Da rinnovare":"📞 Follow-up"}
+              </button>
+            ))}
+          </div>
+          {loadingC && <div style={{color:"#64748b",textAlign:"center",padding:32}}>Caricamento...</div>}
+          {!loadingC && contratti.length===0 && <div style={{color:"#64748b",textAlign:"center",padding:48,fontSize:14}}>Nessun contratto ancora.<br/>Verranno salvati automaticamente alla generazione.</div>}
+          {contratti.filter(c=>{
+            if(filtroC==="tutti") return true;
+            const scad=c.data_scadenza?new Date(c.data_scadenza):null;
+            const gg=scad?Math.ceil((scad-new Date())/(864e5)):null;
+            if(filtroC==="attivo") return gg!==null&&gg>30&&!c.azione;
+            if(filtroC==="in_scadenza") return gg!==null&&gg>=0&&gg<=30;
+            if(filtroC==="scaduto") return gg!==null&&gg<0;
+            if(filtroC==="da_rinnovare") return c.azione==="da_rinnovare";
+            if(filtroC==="follow_up") return c.azione==="follow_up";
+            return true;
+          }).map(c=>{
+            const scad = c.data_scadenza ? new Date(c.data_scadenza) : null;
+            const oggi2 = new Date();
+            const gg = scad ? Math.ceil((scad-oggi2)/(864e5)) : null;
+            const scaduto = gg!==null && gg<0;
+            const inScad = gg!==null && gg>=0 && gg<=30;
+            const borderColor = c.azione==="da_rinnovare"?"#1d4ed8":c.azione==="follow_up"?"#7c3aed":scaduto?"#7f1d1d":inScad?"#78350f":"#1e2d45";
+            return (
+              <div key={c.id||c.numero} style={{background:"#0d1520",border:"1px solid "+borderColor,borderRadius:12,padding:16,marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:15,color:"#fff"}}>{c.numero}</div>
+                    <div style={{fontSize:13,color:"#93c5fd",marginTop:2}}>👤 {c.cliente}</div>
+                    <div style={{fontSize:11,color:"#64748b",marginTop:1}}>Agente: {c.agente}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:"#fcd34d"}}>€{(c.totale||0).toLocaleString("it-IT")}</div>
+                    <div style={{fontSize:11,color:scaduto?"#f87171":inScad?"#fbbf24":"#4ade80",marginTop:4}}>{scaduto?"⚠️ Scaduto":inScad?"⏳ In scadenza":"✅ Attivo"}</div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginTop:8}}>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Inizio</div>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>{c.data_inizio?new Date(c.data_inizio).toLocaleDateString("it-IT"):"—"}</div>
+                  </div>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Scadenza</div>
+                    <div style={{fontSize:12,color:scaduto?"#f87171":inScad?"#fbbf24":"#94a3b8"}}>{scad?scad.toLocaleDateString("it-IT"):"—"}</div>
+                  </div>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Giorni</div>
+                    <div style={{fontSize:12,color:scaduto?"#f87171":inScad?"#fbbf24":"#94a3b8"}}>{gg!==null?(scaduto?`-${Math.abs(gg)}`:`+${gg}`):"—"}</div>
+                  </div>
+                </div>
+                {/* Nota manager */}
+                {c.nota_manager && (
+                  <div style={{marginTop:8,background:"#1e2d45",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#93c5fd"}}>
+                    📝 {c.nota_manager}
+                  </div>
+                )}
+                {/* Azioni manager */}
+                <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                  <button onClick={()=>aggiornaAzioneC(c.id,"da_rinnovare")} style={{
+                    padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:c.azione==="da_rinnovare"?"#1d4ed8":"#1e2d45",color:c.azione==="da_rinnovare"?"#fff":"#64748b"
+                  }}>🔄 Rinnovo</button>
+                  <button onClick={()=>aggiornaAzioneC(c.id,"follow_up")} style={{
+                    padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:c.azione==="follow_up"?"#7c3aed":"#1e2d45",color:c.azione==="follow_up"?"#fff":"#64748b"
+                  }}>📞 Follow-up</button>
+                  <button onClick={()=>aggiornaAzioneC(c.id,null)} style={{
+                    padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:!c.azione?"#14532d":"#1e2d45",color:!c.azione?"#4ade80":"#64748b"
+                  }}>✅ Ok</button>
+                  <button onClick={()=>setEditNotaC(c.id===editNotaC?null:c.id)} style={{
+                    padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:"#1e2d45",color:"#94a3b8",marginLeft:"auto"
+                  }}>📝 Nota</button>
+                </div>
+                {editNotaC===c.id && (
+                  <div style={{marginTop:8,display:"flex",gap:6}}>
+                    <input defaultValue={c.nota_manager||""} id={"nota-"+c.id} style={{flex:1,background:"#080c14",border:"1px solid #1e2d45",borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:12}} placeholder="Nota per l'agente..."/>
+                    <button onClick={()=>{
+                      const val=document.getElementById("nota-"+c.id).value;
+                      salvaNotaC(c.id,val);
+                    }} style={{...S.btn,...S.btnG,padding:"6px 12px",fontSize:12}}>Salva</button>
+                  </div>
+                )}
+                <div style={{marginTop:6,fontSize:10,color:"#334155"}}>
+                  Setup: €{c.setup||0} · €{c.mensile||0}/mese · {c.mesi||12} mesi · {c.pagamento||"—"}
                 </div>
               </div>
             );
@@ -881,7 +1122,7 @@ function ManagerView({ users, leads }) {
 // ─── CONFIG SUPABASE ─────────────────────────────────
 // Incolla qui i tuoi dati Supabase
 const SUPABASE_URL = "https://muemzyhhzozycisvijcw.supabase.co";
-const SUPABASE_KEY = "sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg";  // la anon/public key
+const SUPABASE_KEY = "sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg";
 
 const db = {
   get h() {
@@ -990,8 +1231,237 @@ function App() {
 }
 
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<App />);
-  </script>
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     SISTEMA CONTRATTO - 100% JS puro, nessun React
+═══════════════════════════════════════════════ -->
+
+<!-- MODAL FORM CONTRATTO -->
+<div id="cmodal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:12px;">
+  <div style="background:#0d1520;border:1px solid #1e2d45;border-radius:16px;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px;font-family:sans-serif;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-weight:800;color:#fff;font-size:17px;">📄 Genera Contratto</div>
+      <button onclick="document.getElementById('cmodal').style.display='none'" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Nome cliente / Ragione Sociale</label>
+      <input id="c-nome" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;" placeholder="es. Ristorante Da Mario"/>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">P.IVA / Codice Fiscale (opzionale)</label>
+      <input id="c-piva" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;" placeholder="es. IT01234567890"/>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Indirizzo cliente (opzionale)</label>
+      <input id="c-indirizzo" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;" placeholder="es. Via Roma 1, Milano"/>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Modalità di pagamento</label>
+      <select id="c-pagamento" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;">
+        <option>Bonifico bancario</option>
+        <option>Carta di credito / debito</option>
+        <option>Contanti</option>
+        <option>PayPal</option>
+        <option>SumUp / POS</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Giorni di consegna</label>
+      <select id="c-giorni" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;">
+        <option value="5">5 giorni lavorativi</option>
+        <option value="7" selected>7 giorni lavorativi</option>
+        <option value="10">10 giorni lavorativi</option>
+        <option value="15">15 giorni lavorativi</option>
+      </select>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;">Note aggiuntive (opzionale)</label>
+      <textarea id="c-note" rows="3" style="width:100%;background:#080c14;border:1px solid #1e2d45;border-radius:7px;padding:10px;color:#fff;font-size:13px;box-sizing:border-box;resize:vertical;" placeholder="Accordi particolari..."></textarea>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button onclick="document.getElementById('cmodal').style.display='none'" style="flex:1;padding:12px;background:#1e2d45;border:none;border-radius:8px;color:#94a3b8;font-size:14px;cursor:pointer;">Annulla</button>
+      <button onclick="window.generaContratto()" style="flex:2;padding:14px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✅ Genera Contratto</button>
+    </div>
+  </div>
+</div>
+
+<!-- VISUALIZZATORE CONTRATTO -->
+<div id="cview" style="display:none;position:fixed;inset:0;z-index:9500;background:#fff;flex-direction:column;font-family:sans-serif;">
+  <div style="background:#1e293b;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">
+    <div style="color:#4ade80;font-weight:700;font-size:12px;flex:1;">📄 Contratto — premi ⋮ → Stampa → Salva PDF oppure usa Scarica</div>
+    <div style="display:flex;gap:8px;flex-shrink:0;">
+      <button onclick="window.scaricaContratto()" style="background:#2563eb;border:none;border-radius:8px;color:#fff;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;">⬇ Scarica</button>
+      <button onclick="document.getElementById('cview').style.display='none'" style="background:#ef4444;border:none;border-radius:8px;color:#fff;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer;">✕ Chiudi</button>
+    </div>
+  </div>
+  <div id="save-banner" style="display:none;padding:8px 14px;font-size:12px;font-weight:600;text-align:center;flex-shrink:0;"></div>
+  <div id="cview-body" style="flex:1;overflow-y:auto;"></div>
+</div>
+
+<script>
+window.generaContratto = async function() {
+  var lead = window._lead || {};
+  var az = window._AZIENDA || {};
+  var setup = parseFloat(lead.prezzoSetup)||0;
+  var mensile = parseFloat(lead.prezzoMensile)||0;
+  var mesi = parseInt(lead.mesiContratto)||12;
+  var totale = setup + mensile * mesi;
+  var oggi = new Date();
+  var oggiStr = oggi.toLocaleDateString("it-IT",{day:"2-digit",month:"long",year:"numeric"});
+  var scadData = new Date(oggi); scadData.setMonth(scadData.getMonth()+mesi);
+  var scadStr = scadData.toLocaleDateString("it-IT",{day:"2-digit",month:"long",year:"numeric"});
+  // Sequential numbering from Supabase
+  var count = 0;
+  try {
+    var cr = await fetch("https://muemzyhhzozycisvijcw.supabase.co/rest/v1/contratti?select=id", {
+      headers: {"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg"}
+    });
+    if(cr.ok){ var cdata = await cr.json(); count = Array.isArray(cdata)?cdata.length:0; }
+  } catch(e){}
+  var seq = String(count + 1).padStart(4, "0");
+  var numC = "SW-" + oggi.getFullYear() + "-" + seq;
+  var nome = document.getElementById("c-nome").value || lead.nome || "";
+  var piva = document.getElementById("c-piva").value || "";
+  var indirizzo = document.getElementById("c-indirizzo").value || "";
+  var pagamento = document.getElementById("c-pagamento").value;
+  var giorni = document.getElementById("c-giorni").value;
+  var note = document.getElementById("c-note").value || "";
+  var agente = (window._seller||{}).name || "";
+
+  var css = "<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;color:#1a1a2e;font-size:14px;}.wrap{max-width:820px;margin:0 auto;padding:30px 20px;}.card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08);margin-bottom:20px;overflow:hidden;}.card-header{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;padding:14px 20px;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;}.card-body{padding:20px;}.header-card{background:linear-gradient(135deg,#0f3460 0%,#16213e 100%);border-radius:12px;padding:28px 24px;margin-bottom:20px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;}.logo-img{height:52px;width:auto;filter:brightness(0) invert(1);}.brand-sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:8px;}.doc-num{text-align:right;}.doc-num .label{font-size:10px;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;}.doc-num .num{font-size:22px;font-weight:800;color:#e2c97e;margin:4px 0;}.doc-num .date{font-size:12px;color:rgba(255,255,255,.7);}.alert{background:#fff8e1;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#78350f;line-height:1.6;}.parties{display:grid;grid-template-columns:1fr 1fr;gap:0;}.party{padding:18px;}.party:first-child{border-right:1px solid #f0f0f0;}.party-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px;}.party-name{font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:6px;}.party-detail{font-size:12px;color:#64748b;line-height:1.7;}table{width:100%;border-collapse:collapse;}th{padding:10px 16px;text-align:left;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;border-bottom:2px solid #f1f5f9;}td{padding:14px 16px;border-bottom:1px solid #f8fafc;font-size:13px;vertical-align:top;}tr:last-child td{border-bottom:none;}.service-name{font-weight:700;color:#1a1a2e;}.service-desc{color:#64748b;font-size:12px;line-height:1.6;margin-top:2px;}.price-row td{background:#0f3460;color:#fff;font-weight:700;font-size:15px;}.price-row td:last-child{color:#e2c97e;text-align:right;font-size:17px;}.amount{text-align:right;font-weight:700;color:#0f3460;}.payment-info{background:#f8fafc;border-radius:8px;padding:12px 16px;margin-top:12px;font-size:12px;color:#64748b;}.payment-info strong{color:#1a1a2e;}.clause{padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.7;color:#334155;}.clause:last-child{border-bottom:none;}.clause strong{color:#0f3460;}.vessat{background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:16px;font-size:12px;color:#78350f;line-height:1.7;}.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:8px;}.sign-box{height:70px;border-bottom:2px solid #cbd5e1;margin-bottom:8px;}.sign-label{font-size:11px;color:#94a3b8;}.sign-name{font-size:13px;font-weight:600;color:#1a1a2e;margin-top:2px;}.sign-date{font-size:11px;color:#94a3b8;margin-top:2px;}.footer-bar{background:#1a1a2e;color:rgba(255,255,255,.5);text-align:center;padding:14px;font-size:11px;margin-top:-1px;}@media print{body{background:#fff;}.wrap{padding:0;}.card{box-shadow:none;border:1px solid #e2e8f0;}.header-card,.card-header,.price-row td{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}<\/style>";
+
+  var html = "<!DOCTYPE html><html lang='it'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Contratto "+numC+"<\/title>"+css+"<\/head><body><div class='wrap'>"
+  +"<div class='header-card'>"
+  +"<div><div style='font-size:26px;font-weight:900;color:#fff;'>SalesWorld<\/div><div class='brand-sub'>"+az.indirizzo+"<br>"+az.email+" · "+az.telefono+"<\/div><\/div>"
+  +"<div class='doc-num'><div class='label'>Contratto di Servizio<\/div><div class='num'>"+numC+"<\/div><div class='date'>"+oggiStr+"<\/div><\/div>"
+  +"<\/div>"
+  +"<div class='alert'><strong>⚠️ Documento contrattuale vincolante<\/strong> ai sensi del Codice Civile italiano. Leggere attentamente prima di firmare.<\/div>"
+  +"<div class='card'><div class='card-header'>1. Parti Contraenti<\/div><div class='card-body' style='padding:0'><div class='parties'>"
+  +"<div class='party'><div class='party-label'>Fornitore — Parte A<\/div><div class='party-name'>"+az.nome+"<\/div><div class='party-detail'>Reg. forfettario art.1 cc.54-89 L.190/2014<br>"+az.indirizzo+"<br>"+az.email+"<br>Agente: <strong>"+agente+"<\/strong><\/div><\/div>"
+  +"<div class='party'><div class='party-label'>Cliente — Parte B<\/div><div class='party-name'>"+nome+"<\/div><div class='party-detail'>"+(piva?"P.IVA/CF: "+piva+"<br>":"")+( indirizzo?indirizzo+"<br>":"")+"Settore: "+(lead.nicchia||"—")+(lead.zona?"<br>Zona: "+lead.zona:"")+"<\/div><\/div>"
+  +"<\/div><\/div><\/div>"
+  +"<div class='card'><div class='card-header'>2. Oggetto del Contratto<\/div><div class='card-body'><p style='font-size:13px;color:#334155;line-height:1.8;'>"+az.nome+" si impegna a fornire a <strong>"+nome+"<\/strong> servizi di presenza digitale per <strong>"+mesi+" mesi<\/strong>, dal <strong>"+oggiStr+"<\/strong> al <strong>"+scadStr+"<\/strong>.<\/p><\/div><\/div>"
+  +"<div class='card'><div class='card-header'>3. Servizi Inclusi<\/div><div class='card-body' style='padding:0'><table><thead><tr><th style='width:32%'>Servizio<\/th><th>Descrizione<\/th><\/tr><\/thead><tbody>"
+  +"<tr><td><div class='service-name'>🌐 Sito Web<\/div><\/td><td><div class='service-desc'>Sito responsive per il settore "+(lead.nicchia||"")+". Include home, sezione presentazione, galleria, modulo contatti, Google Maps. Compatibile con tutti i dispositivi.<\/div><\/td><\/tr>"
+  +"<tr><td><div class='service-name'>☁️ Hosting & Dominio<\/div><\/td><td><div class='service-desc'>Hosting professionale uptime 99,9%, dominio personalizzato, SSL, backup settimanale, protezione spam e malware per "+mesi+" mesi.<\/div><\/td><\/tr>"
+  +"<tr><td><div class='service-name'>📍 SEO Locale<\/div><\/td><td><div class='service-desc'>Google Business Profile, SEO locale per "+(lead.nicchia||"")+" nella zona "+(lead.zona||"—")+", inserimento directory locali.<\/div><\/td><\/tr>"
+  +"<tr><td><div class='service-name'>🔧 Manutenzione<\/div><\/td><td><div class='service-desc'>Fino a 3 modifiche mensili, aggiornamenti sicurezza, supporto WhatsApp entro 24h lavorative.<\/div><\/td><\/tr>"
+  +"<tr><td><div class='service-name'>🚀 Consegna<\/div><\/td><td><div class='service-desc'>Pubblicazione entro <strong>"+giorni+" giorni lavorativi<\/strong> dai materiali ricevuti. Ritardi imputabili al fornitore = 1 mese gratis.<\/div><\/td><\/tr>"
+  +"<\/tbody><\/table><\/div><\/div>"
+  +"<div class='card'><div class='card-header'>4. Condizioni Economiche<\/div><div class='card-body' style='padding:0'><table><thead><tr><th>Voce<\/th><th>Descrizione<\/th><th style='text-align:right'>Importo<\/th><\/tr><\/thead><tbody>"
+  +"<tr><td><strong>Setup iniziale<\/strong><\/td><td style='color:#64748b;font-size:12px'>Pagamento unico alla firma.<\/td><td class='amount'>EUR "+setup+",00<\/td><\/tr>"
+  +"<tr><td><strong>Canone mensile<\/strong><\/td><td style='color:#64748b;font-size:12px'>Hosting, manutenzione, SEO · "+mesi+" mesi.<\/td><td class='amount'>EUR "+mensile+",00\/mese<\/td><\/tr>"
+  +"<tr class='price-row'><td colspan='2'><strong>TOTALE CONTRATTO<\/strong><\/td><td>EUR "+totale+",00<\/td><\/tr>"
+  +"<\/tbody><\/table><div class='payment-info'>💳 Pagamento: <strong>"+pagamento+"<\/strong>"+(pagamento==="Bonifico bancario"?" · IBAN: <strong>"+az.iban+"<\/strong>":"")+" · Causale: <strong>"+numC+"<\/strong><br><span style='color:#94a3b8'>"+az.nome+" opera in regime forfettario art.1 L.190/2014. IVA non applicata.<\/span><\/div><\/div><\/div>"
+  +"<div class='card'><div class='card-header'>5. Clausole Contrattuali<\/div><div class='card-body'>"
+  +"<div class='clause'><strong>Art. 1 – Durata.<\/strong> Contratto di "+mesi+" mesi, rinnovo tacito salvo disdetta scritta con 30 giorni preavviso.<\/div>"
+  +"<div class='clause'><strong>Art. 2 – Obblighi Cliente.<\/strong> Fornire materiali entro 5 giorni dalla firma garantendone i diritti. Pagare nei termini.<\/div>"
+  +"<div class='clause'><strong>Art. 3 – Pagamenti e mora.<\/strong> Setup entro 3 giorni dalla firma; canone mensile entro il giorno 5. Ritardi >15 giorni: sospensione servizio. >30 giorni: interessi ex D.Lgs. 231/2002.<\/div>"
+  +"<div class='clause'><strong>Art. 4 – Recesso.<\/strong> Preavviso scritto 30 giorni. Setup non rimborsabile a sito pubblicato.<\/div>"
+  +"<div class='clause'><strong>Art. 5 – Proprietà intellettuale.<\/strong> Dominio trasferito al cliente a saldo completo. Codice sorgente e design restano di proprietà di "+az.nome+".<\/div>"
+  +"<div class='clause'><strong>Art. 6 – Responsabilità.<\/strong> Interruzioni <24h o da terze parti non imputabili al Fornitore. Responsabilità max: 3 mesi di canone.<\/div>"
+  +"<div class='clause'><strong>Art. 7 – GDPR.<\/strong> Dati trattati ex Reg. UE 2016/679 solo per eseguire il contratto. Nessuna cessione a terzi.<\/div>"
+  +"<div class='clause'><strong>Art. 8 – Foro.<\/strong> Legge italiana. Foro esclusivo: Tribunale di Pavia.<\/div>"
+  +(note?"<div class='clause'><strong>Note:<\/strong> "+note+"<\/div>":"")
+  +"<\/div><\/div>"
+  +"<div class='card'><div class='card-header'>Approvazione Clausole Vessatorie — artt. 1341-1342 c.c.<\/div><div class='card-body'><div class='vessat'>Il Cliente approva specificamente: <strong>Art.3<\/strong> (mora), <strong>Art.4<\/strong> (recesso), <strong>Art.5<\/strong> (proprietà), <strong>Art.6<\/strong> (responsabilità), <strong>Art.8<\/strong> (foro).<\/div>"
+  +"<div class='sign-grid' style='margin-top:20px'><div><div class='sign-box'><\/div><div class='sign-label'>Firma Cliente — approvazione specifica<\/div><\/div><div><div class='sign-box'><\/div><div class='sign-label'>Data<\/div><\/div><\/div><\/div><\/div>"
+  +"<div class='card'><div class='card-header'>6. Sottoscrizione<\/div><div class='card-body'><p style='font-size:12px;color:#64748b;margin-bottom:24px;line-height:1.6;'>Le parti, avendo letto e compreso il presente contratto, lo sottoscrivono come atto di accettazione.<\/p>"
+  +"<div class='sign-grid'><div><div class='sign-box'><\/div><div class='sign-name'>"+az.nome+"<\/div><div class='sign-label'>Firma Fornitore (Parte A)<\/div><div class='sign-date'>"+oggiStr+"<\/div><\/div>"
+  +"<div><div class='sign-box'><\/div><div class='sign-name'>"+nome+"<\/div><div class='sign-label'>Firma Cliente (Parte B)<\/div><div class='sign-date'>Data: _______________<\/div><\/div><\/div><\/div>"
+  +"<div class='footer-bar'>"+az.nome+" · P.IVA "+az.piva+" · "+az.indirizzo+" · "+numC+"<\/div><\/div>"
+  +"<\/div><\/body><\/html>";
+
+  window._lastHTML = html;
+  window._lastNumC = numC;
+  window._lastScadStr = scadStr;
+  window._lastLead = lead;
+  window._lastAgente = agente;
+  window._lastNome = nome;
+  window._lastMesi = mesi;
+  window._lastTotale = totale;
+
+  // Save to Supabase contratti table
+  var savedOk = false;
+  try {
+    var saveRes = await fetch("https://muemzyhhzozycisvijcw.supabase.co/rest/v1/contratti", {
+      method:"POST",
+      headers:{"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Content-Type":"application/json","Prefer":"return=minimal"},
+      body: JSON.stringify({
+        numero: numC,
+        lead_id: lead.id || null,
+        cliente: nome,
+        agente: agente,
+        setup: setup,
+        mensile: mensile,
+        mesi: mesi,
+        totale: totale,
+        pagamento: pagamento,
+        data_inizio: oggi.toISOString().slice(0,10),
+        data_scadenza: scadData.toISOString().slice(0,10),
+        note: note
+      })
+    });
+    if(saveRes.ok || saveRes.status===201) {
+      savedOk = true;
+    } else {
+      var errBody = await saveRes.text();
+      console.error("Contratto save failed:", saveRes.status, errBody);
+      // Show error to user
+      setTimeout(()=>{
+        var toast = document.createElement("div");
+        toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#7f1d1d;color:#fca5a5;padding:12px 20px;border-radius:10px;font-size:13px;z-index:9999;max-width:90vw;text-align:center;";
+        toast.textContent = "⚠️ Errore salvataggio contratto: " + (errBody.slice(0,80));
+        document.body.appendChild(toast);
+        setTimeout(()=>toast.remove(), 6000);
+      }, 500);
+    }
+  } catch(e){
+    console.error("Supabase save error:", e);
+  }
+  // Show save status in contract view
+  window._savedOk = savedOk;
+
+  document.getElementById("cview-body").innerHTML = html;
+  document.getElementById("cmodal").style.display = "none";
+  document.getElementById("cview").style.display = "flex";
+
+  // Banner stato salvataggio
+  var banner = document.getElementById("save-banner");
+  if(banner) {
+    banner.textContent = savedOk
+      ? "\u2705 Contratto " + numC + " salvato \u2014 gi\u00e0 visibile al manager nel tab Contratti"
+      : "\u26a0\ufe0f Contratto NON salvato \u2014 esegui l\'SQL su Supabase per creare la tabella";
+    banner.style.background = savedOk ? "#14532d" : "#7f1d1d";
+    banner.style.color = savedOk ? "#4ade80" : "#fca5a5";
+    banner.style.display = "block";
+  }
+  // Notifica React per refresh immediato nel manager
+  if(savedOk) window.dispatchEvent(new CustomEvent("contrattoSalvato"));
+};
+
+window.scaricaContratto = function() {
+  var html = window._lastHTML;
+  if(!html){ alert("Prima genera il contratto!"); return; }
+  // Usa iframe nascosto + print: funziona su Samsung Chrome senza popup bloccati
+  var old = document.getElementById("_print_frame");
+  if(old) old.parentNode.removeChild(old);
+  var iframe = document.createElement("iframe");
+  iframe.id = "_print_frame";
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;";
+  document.body.appendChild(iframe);
+  var doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open(); doc.write(html); doc.close();
+  setTimeout(function(){
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  }, 400);
+};
+</script>
 </body>
 </html>
