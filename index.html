@@ -1319,9 +1319,12 @@ window.generaContratto = async function() {
   var count = 0;
   try {
     var cr = await fetch("https://muemzyhhzozycisvijcw.supabase.co/rest/v1/contratti?select=id", {
-      headers: {"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg"}
+      headers: {"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Prefer":"count=exact","Range":"0-0"}
     });
-    if(cr.ok){ var cdata = await cr.json(); count = Array.isArray(cdata)?cdata.length:0; }
+    if(cr.ok){ 
+      var cRange = cr.headers.get("Content-Range");
+      count = cRange ? parseInt(cRange.split("/")[1])||0 : 0;
+    }
   } catch(e){}
   var seq = String(count + 1).padStart(4, "0");
   var numC = "SW-" + oggi.getFullYear() + "-" + seq;
@@ -1394,17 +1397,17 @@ window.generaContratto = async function() {
       headers:{"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Content-Type":"application/json","Prefer":"return=minimal"},
       body: JSON.stringify({
         numero: numC,
-        lead_id: lead.id || null,
-        cliente: nome,
-        agente: agente,
-        setup: setup,
-        mensile: mensile,
-        mesi: mesi,
-        totale: totale,
-        pagamento: pagamento,
+        lead_id: (lead.id && lead.id !== "") ? lead.id : null,
+        cliente: nome || null,
+        agente: agente || null,
+        setup: parseFloat(setup) || 0,
+        mensile: parseFloat(mensile) || 0,
+        mesi: parseInt(mesi) || 12,
+        totale: parseFloat(totale) || 0,
+        pagamento: pagamento || null,
         data_inizio: oggi.toISOString().slice(0,10),
         data_scadenza: scadData.toISOString().slice(0,10),
-        note: note
+        note: note || null
       })
     });
     if(saveRes.ok || saveRes.status===201) {
