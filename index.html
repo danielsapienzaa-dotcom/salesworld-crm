@@ -290,6 +290,18 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
   const [tab, setTab] = useState("leads");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [miei_contratti, setMieiContratti] = useState([]);
+  const [loadingMC, setLoadingMC] = useState(false);
+
+  const caricaMieiContratti = async () => {
+    setLoadingMC(true);
+    try {
+      const r = await fetch(SUPABASE_URL+"/rest/v1/contratti?agente=eq."+encodeURIComponent(user.name)+"&order=created_at.desc",{headers:db.h});
+      if(r.ok) setMieiContratti(await r.json());
+    } catch(e){}
+    setLoadingMC(false);
+  };
+  useEffect(()=>{ if(tab==="contratti") caricaMieiContratti(); },[tab]);
   const [filter, setFilter] = useState("tutti");
   const [search, setSearch] = useState("");
   const [openScript, setOpenScript] = useState(null);
@@ -334,7 +346,7 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
           <div style={{ color:"#475569", fontSize:12 }}>{new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"})}</div>
         </div>
         <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
-          {["leads","agenda","kpi","script"].map(t=><TabBtn key={t} label={t==="leads"?"📋 Lead":t==="agenda"?"📅 Agenda":t==="kpi"?"📊 KPI":"📖 Script"} active={tab===t} onClick={()=>setTab(t)}/>)}
+          {["leads","agenda","kpi","script","contratti"].map(t=><TabBtn key={t} label={t==="leads"?"📋 Lead":t==="agenda"?"📅 Agenda":t==="kpi"?"📊 KPI":t==="script"?"📖 Script":"📄 Contratti"} active={tab===t} onClick={()=>setTab(t)}/>)}
         </div>
       </div>
 
@@ -573,6 +585,68 @@ function SellerView({ user, users, leads, addLead, updateLead, deleteLead }) {
   );
 }
 
+
+
+      {tab==="contratti" && (
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{color:"#94a3b8",fontSize:13}}>{miei_contratti.length} tuoi contratti</div>
+            <button onClick={caricaMieiContratti} style={{...S.btn,background:"#1e2d45",color:"#93c5fd",padding:"6px 14px",fontSize:12}}>🔄 Aggiorna</button>
+          </div>
+          {loadingMC && <div style={{color:"#64748b",textAlign:"center",padding:32}}>Caricamento...</div>}
+          {!loadingMC && miei_contratti.length===0 && (
+            <div style={{color:"#64748b",textAlign:"center",padding:48,fontSize:14}}>Nessun contratto ancora.</div>
+          )}
+          {miei_contratti.map(c=>{
+            const scad = c.data_scadenza ? new Date(c.data_scadenza) : null;
+            const oggi2 = new Date();
+            const gg = scad ? Math.ceil((scad-oggi2)/(864e5)) : null;
+            const scaduto = gg!==null && gg<0;
+            const inScad = gg!==null && gg>=0 && gg<=30;
+            const borderColor = c.azione==="da_rinnovare"?"#3b82f6":c.azione==="follow_up"?"#a855f7":scaduto?"#ef4444":inScad?"#f59e0b":"#1e2d45";
+            const bgColor = c.azione==="da_rinnovare"?"#0d1a35":c.azione==="follow_up"?"#1a0d35":scaduto?"#1a0505":inScad?"#1a1200":"#0d1520";
+            return (
+              <div key={c.id||c.numero} style={{background:bgColor,border:"2px solid "+borderColor,borderRadius:12,padding:16,marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:15,color:"#fff"}}>{c.numero}</div>
+                    <div style={{fontSize:13,color:"#93c5fd",marginTop:2}}>👤 {c.cliente}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:"#fcd34d"}}>€{(c.totale||0).toLocaleString("it-IT")}</div>
+                    <div style={{fontSize:11,fontWeight:700,marginTop:4,color:c.azione==="da_rinnovare"?"#93c5fd":c.azione==="follow_up"?"#c084fc":scaduto?"#ef4444":inScad?"#f59e0b":"#4ade80"}}>
+                      {c.azione==="da_rinnovare"?"🔄 Da rinnovare":c.azione==="follow_up"?"📞 Follow-up richiesto":scaduto?"🔴 Scaduto":inScad?"🟡 In scadenza":"🟢 Attivo"}
+                    </div>
+                  </div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Inizio</div>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>{c.data_inizio?new Date(c.data_inizio).toLocaleDateString("it-IT"):"—"}</div>
+                  </div>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Scadenza</div>
+                    <div style={{fontSize:12,color:scaduto?"#ef4444":inScad?"#f59e0b":"#94a3b8",fontWeight:scaduto||inScad?700:400}}>{scad?scad.toLocaleDateString("it-IT"):"—"}</div>
+                  </div>
+                  <div style={{background:"#080c14",borderRadius:8,padding:"6px 10px"}}>
+                    <div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",marginBottom:2}}>Giorni</div>
+                    <div style={{fontSize:12,color:scaduto?"#ef4444":inScad?"#f59e0b":"#94a3b8",fontWeight:scaduto||inScad?700:400}}>{gg!==null?(scaduto?`-${Math.abs(gg)}`:`+${gg}`):"—"}</div>
+                  </div>
+                </div>
+                {c.nota_manager && (
+                  <div style={{background:"#080c14",border:"1px solid "+borderColor,borderRadius:8,padding:"10px 12px",marginTop:4}}>
+                    <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",marginBottom:4,letterSpacing:1}}>📝 Nota dal Manager</div>
+                    <div style={{fontSize:13,color:"#e2e8f0",fontWeight:500}}>{c.nota_manager}</div>
+                  </div>
+                )}
+                <div style={{marginTop:8,fontSize:10,color:"#334155"}}>
+                  Setup: €{c.setup||0} · €{c.mensile||0}/mese · {c.mesi||12} mesi · {c.pagamento||"—"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 // ─── MANAGER VIEW ────────────────────────────────────
 function ManagerView({ users, leads }) {
   const [tab, setTab] = useState("overview");
@@ -589,12 +663,12 @@ function ManagerView({ users, leads }) {
   // Calcola alertscontratti ogni volta che contratti cambia
   const oggi_n = new Date();
   const alertsScaduti = contratti.filter(c=>{
-    if(!c.data_scadenza) return false;
+    if(!c.data_scadenza || c.azione) return false;
     const gg = Math.ceil((new Date(c.data_scadenza)-oggi_n)/(864e5));
     return gg < 0;
   });
   const alertsInScadenza = contratti.filter(c=>{
-    if(!c.data_scadenza) return false;
+    if(!c.data_scadenza || c.azione) return false;
     const gg = Math.ceil((new Date(c.data_scadenza)-oggi_n)/(864e5));
     return gg >= 0 && gg <= 30;
   });
@@ -634,10 +708,13 @@ function ManagerView({ users, leads }) {
 
   // Refresh immediato quando un venditore salva un contratto (stessa sessione)
   useEffect(()=>{
-    const handler = ()=>{ if(tab==="contratti") caricaContratti(true); };
+    const handler = ()=>{ caricaContratti(true); };
     window.addEventListener("contrattoSalvato", handler);
     return ()=>window.removeEventListener("contrattoSalvato", handler);
   },[tab]);
+
+  // Rimostra banner se arrivano nuovi alert non gestiti
+  useEffect(()=>{ if(totaleAlert>0) setNotifDismissed(false); },[totaleAlert]);
 
   const aggiornaAzioneC = async (id, azione) => {
     if(!id) return;
