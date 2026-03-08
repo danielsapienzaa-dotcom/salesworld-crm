@@ -1396,18 +1396,17 @@ window.generaContratto = async function() {
       method:"POST",
       headers:{"apikey":"sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Authorization":"Bearer sb_publishable_eD-CfbvTlVwcUbVDa7LxIQ_h3BilBXg","Content-Type":"application/json","Prefer":"return=minimal"},
       body: JSON.stringify({
-        numero: numC,
-        lead_id: (lead.id && lead.id !== "") ? lead.id : null,
-        cliente: nome || null,
-        agente: agente || null,
-        setup: parseFloat(setup) || 0,
-        mensile: parseFloat(mensile) || 0,
-        mesi: parseInt(mesi) || 12,
-        totale: parseFloat(totale) || 0,
-        pagamento: pagamento || null,
+        numero: String(numC),
+        cliente: String(nome || ""),
+        agente: String(agente || ""),
+        setup: Number(parseFloat(setup)||0),
+        mensile: Number(parseFloat(mensile)||0),
+        mesi: Number(parseInt(mesi)||12),
+        totale: Number(parseFloat(totale)||0),
+        pagamento: String(pagamento || ""),
         data_inizio: oggi.toISOString().slice(0,10),
         data_scadenza: scadData.toISOString().slice(0,10),
-        note: note || null
+        note: String(note || "")
       })
     });
     if(saveRes.ok || saveRes.status===201) {
