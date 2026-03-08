@@ -582,6 +582,17 @@ function ManagerView({ users, leads }) {
   const [loadingC, setLoadingC] = useState(false);
   const [filtroC, setFiltroC] = useState("tutti");
   const [editNotaC, setEditNotaC] = useState(null);
+  const [confirmDeleteC, setConfirmDeleteC] = useState(null);
+
+  const eliminaContratto = async (id) => {
+    setContratti(prev=>prev.filter(c=>c.id!==id));
+    setConfirmDeleteC(null);
+    try {
+      await fetch(SUPABASE_URL+"/rest/v1/contratti?id=eq."+id, {
+        method:"DELETE", headers:db.h
+      });
+    } catch(e){}
+  };
 
   const caricaContratti = async (silent=false) => {
     if(!silent) setLoadingC(true);
@@ -1011,10 +1022,24 @@ function ManagerView({ users, leads }) {
       {/* ── CONTRATTI ── */}
       {tab==="contratti" && (
         <div>
+          {/* Conferma eliminazione contratto */}
+          {confirmDeleteC && (
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+              <div style={{background:"#0d1520",border:"1px solid #7f1d1d",borderRadius:14,padding:28,maxWidth:320,width:"100%",textAlign:"center"}}>
+                <div style={{fontSize:28,marginBottom:8}}>🗑️</div>
+                <div style={{color:"#fff",fontWeight:700,fontSize:16,marginBottom:6}}>Eliminare contratto?</div>
+                <div style={{color:"#94a3b8",fontSize:13,marginBottom:20}}>Questa azione è irreversibile. Il contratto verrà rimosso da Supabase.</div>
+                <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+                  <button onClick={()=>setConfirmDeleteC(null)} style={{...S.btn,background:"#1e2d45",color:"#94a3b8",padding:"10px 20px"}}>Annulla</button>
+                  <button onClick={()=>eliminaContratto(confirmDeleteC)} style={{...S.btn,background:"#7f1d1d",color:"#fca5a5",padding:"10px 20px",fontWeight:700}}>Elimina</button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Header con filtri */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
             <div style={{color:"#94a3b8",fontSize:13}}>{contratti.length} contratti salvati</div>
-            <button onClick={caricaContratti} style={{...S.btn,background:"#1e2d45",color:"#93c5fd",padding:"6px 14px",fontSize:12}}>🔄 Aggiorna</button>
+            <button onClick={()=>caricaContratti(false)} style={{...S.btn,background:"#1e2d45",color:"#93c5fd",padding:"6px 14px",fontSize:12}}>🔄 Aggiorna</button>
           </div>
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
             {["tutti","attivo","in_scadenza","scaduto","da_rinnovare","follow_up"].map(f=>(
@@ -1080,7 +1105,7 @@ function ManagerView({ users, leads }) {
                   </div>
                 )}
                 {/* Azioni manager */}
-                <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap",alignItems:"center"}}>
                   <button onClick={()=>aggiornaAzioneC(c.id,"da_rinnovare")} style={{
                     padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
                     background:c.azione==="da_rinnovare"?"#1d4ed8":"#1e2d45",color:c.azione==="da_rinnovare"?"#fff":"#64748b"
@@ -1095,8 +1120,12 @@ function ManagerView({ users, leads }) {
                   }}>✅ Ok</button>
                   <button onClick={()=>setEditNotaC(c.id===editNotaC?null:c.id)} style={{
                     padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
-                    background:"#1e2d45",color:"#94a3b8",marginLeft:"auto"
+                    background:"#1e2d45",color:"#94a3b8"
                   }}>📝 Nota</button>
+                  <button onClick={()=>setConfirmDeleteC(c.id)} style={{
+                    padding:"5px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:"#1e2d45",color:"#ef4444",marginLeft:"auto"
+                  }}>🗑️</button>
                 </div>
                 {editNotaC===c.id && (
                   <div style={{marginTop:8,display:"flex",gap:6}}>
@@ -1197,7 +1226,13 @@ function App() {
     setLeads(ls => ls.filter(l => l.id !== id));
     if (!useSheets) return;
     setSyncing(true);
-    try { await db.remove(id); } catch(e) {}
+    try {
+      await db.remove(id);
+      // Cancella anche il contratto associato su Supabase (se esiste)
+      await fetch(SUPABASE_URL+"/rest/v1/contratti?lead_id=eq."+id, {
+        method:"DELETE", headers:db.h
+      });
+    } catch(e) {}
     setSyncing(false);
   };
 
